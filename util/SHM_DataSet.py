@@ -35,8 +35,9 @@ class SHMDataset(Dataset):
                 sensorData = self.data[self.data['sens_pos']==k]
                 start = sensorData.index[0]+(index-sensorData.index[0])*self.windowStep
                 slice = sensorData[start:start+self.windowLength]["z"]
+                print(slice.shape)
                 frequencies, times, spectrogram = self._transformation(slice)
-                return spectrogram, None
+                return torch.tensor(spectrogram), None
 
     def _readCSV(self):
         start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
