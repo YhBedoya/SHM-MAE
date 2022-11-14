@@ -30,12 +30,13 @@ class SHMDataset(Dataset):
 
     def __getitem__(self, index):
         #startTime = time.time()
+        print()
         for k,v in self.partitions.items():
             if index in range(v[0], v[1]):
                 sensorData = self.data[self.data['sens_pos']==k]
                 start = sensorData.index[0]+(index-sensorData.index[0])*self.windowStep
                 slice = sensorData[start:start+self.windowLength]["z"]
-                print(slice.shape)
+                print(f'Index: {index}, shape {slice.shape}')
                 frequencies, times, spectrogram = self._transformation(slice)
                 return torch.tensor(spectrogram), None
 
