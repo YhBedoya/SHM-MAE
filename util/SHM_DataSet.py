@@ -39,7 +39,7 @@ class SHMDataset(Dataset):
                 frequencies, times, spectrogram = self._transformation(slice)
                 spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
                 NormSpect = self.Normalizer(spectrogram)
-            
+                print(f'index: {index}, type {NormSpect}')
                 return NormSpect, None
 
     def _readCSV(self):
