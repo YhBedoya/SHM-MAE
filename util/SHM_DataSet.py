@@ -25,7 +25,7 @@ class SHMDataset(Dataset):
         self.windowStep = 100
         self.sensors = self._getSensors()
         self.partitions, self.totalWindows = self._partitioner()
-        self.Normalizer = torchvision.transforms.Normalize(mean=[3.4097461665559692e-09], std=[7.084612319364556e-09])
+        self.Normalizer = torchvision.transforms.Normalize(mean=[3.900204491107504e-09], std=[5.970413343698724e-08])
 
     def __len__(self):
         return self.totalWindows
@@ -38,8 +38,8 @@ class SHMDataset(Dataset):
                 slice = self.data.iloc[start:start+self.windowLength]["z"]
                 print(f'Index: {index}, shape {slice.shape}')
                 frequencies, times, spectrogram = self._transformation(slice)
-                signal = self.Normalizer(spectrogram)
-                return torch.tensor(signal), None
+                signal = self.Normalizer(torch.tensor(spectrogram))
+                return signal, None
 
     def _readCSV(self):
         start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')

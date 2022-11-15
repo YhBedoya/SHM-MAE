@@ -1,7 +1,6 @@
 from torch.utils.data import Dataset
 import torch
 import glob
-import torchaudio
 #import matplotlib.pyplot as plt
 #import librosa.display
 import numpy as np
@@ -118,14 +117,19 @@ def plotSpect(frequencies, times, spectrogram, index):
 
 def task(gen, i):
     frequencies, times, spectrogram = gen[i]
+    means.append(np.mean(spectrogram))
+    vars.append(np.var(spectrogram))
+
 
 
 if __name__ == "__main__":
     timer = list()
     gen = SHMDataset()
-    means = []
-    vars = []
     processes = []
+    manager = multiprocessing.Manager()
+    means = manager.list()
+    vars = manager.list()
+
     #indexes = [random.randrange(0, 187300) for i in range(1000)]
     #indexes = range(0, 187300)
     #for i in tqdm(indexes):
@@ -141,8 +145,9 @@ if __name__ == "__main__":
     #gnrStd = np.sqrt(np.mean(np.array(vars)))
 
     startMeasure = time.time()
-    for i in range(0, 1000):
-        p = multiprocessing.Process(target = task, args=(gen, i))
+    indexes = [random.randrange(0, 187300) for i in range(10000)]
+    for i in range(0, 10000):
+        p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
         p.start()
         processes.append(p)
 
@@ -152,4 +157,6 @@ if __name__ == "__main__":
 
     print(f'Total time {endMeasure-startMeasure}')
 
-    #print(f'General mean {gnrMean} general std {gnrStd}')
+    gnrMean = np.mean(np.array(means))
+    gnrStd = np.sqrt(np.mean(np.array(vars)))
+    print(f'General mean {gnrMean} general std {gnrStd}')
