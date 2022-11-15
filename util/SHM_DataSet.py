@@ -38,8 +38,10 @@ class SHMDataset(Dataset):
                 slice = self.data.iloc[start:start+self.windowLength]["z"]
                 print(f'Index: {index}, shape {slice.shape}')
                 frequencies, times, spectrogram = self._transformation(slice)
-                signal = self.Normalizer(torch.tensor(spectrogram))
-                return signal, None
+                spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
+                NormSpect = self.Normalizer(spectrogram)
+            
+                return NormSpect, None
 
     def _readCSV(self):
         start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')

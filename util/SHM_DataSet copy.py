@@ -19,11 +19,12 @@ import librosa.display
 from scipy import signal
 from tqdm import tqdm
 import multiprocessing
+import torchvision
 
 class SHMDataset(Dataset):
 
     def __init__(self):
-        self.start_time, self.end_time = "05/12/2021 23:30", "06/12/2021 00:00"
+        self.start_time, self.end_time = "05/12/2021 23:55", "06/12/2021 00:00"
         self.path = "/home/yhbedoya/Repositories/SHM-MAE/traffic/"
         self.data = self._readCSV()
         self.sampleRate = 100
@@ -33,6 +34,8 @@ class SHMDataset(Dataset):
         self.windowStep = 100
         self.sensors = self._getSensors()
         self.partitions, self.totalWindows = self._partitioner()
+        self.Normalizer = torchvision.transforms.Normalize(mean=[3.900204491107504e-09], std=[5.970413343698724e-08])
+
 
     def __len__(self):
         return self.totalWindows
@@ -44,6 +47,10 @@ class SHMDataset(Dataset):
                 start = sensorData.index[0]+(index-v[0])*self.windowStep
                 slice = self.data.iloc[start:start+self.windowLength]["z"]
                 frequencies, times, spectrogram = self._transformation(slice)
+                spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
+                NormSpect = self.Normalizer(spectrogram)
+                
+                print(NormSpect.shape)
                 return frequencies, times, spectrogram
 
     def _readCSV(self):
@@ -130,33 +137,33 @@ if __name__ == "__main__":
     means = manager.list()
     vars = manager.list()
 
-    #indexes = [random.randrange(0, 187300) for i in range(1000)]
+    indexes = [random.randrange(0, 29820) for i in range(10)]
     #indexes = range(0, 187300)
-    #for i in tqdm(indexes):
-    #    startMeasure = time.time()
-    #    frequencies, times, spectrogram = gen[i]
-    #    means.append(np.mean(spectrogram))
-    #    vars.append(np.var(spectrogram))
-    #    endMeasure = time.time()
-    #    timer.append(endMeasure-startMeasure)
+    for i in tqdm(indexes):
+        startMeasure = time.time()
+        frequencies, times, spectrogram = gen[i]
+        means.append(np.mean(spectrogram))
+        vars.append(np.var(spectrogram))
+        endMeasure = time.time()
+        timer.append(endMeasure-startMeasure)
 
-        #plotSpect(frequencies, times, spectrogram, i)
-    #gnrMean = np.mean(np.array(means))
-    #gnrStd = np.sqrt(np.mean(np.array(vars)))
-
-    startMeasure = time.time()
-    indexes = [random.randrange(0, 187300) for i in range(10000)]
-    for i in range(0, 10000):
-        p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join()
-    endMeasure = time.time()
-
-    print(f'Total time {endMeasure-startMeasure}')
-
+        plotSpect(frequencies, times, spectrogram, i)
     gnrMean = np.mean(np.array(means))
     gnrStd = np.sqrt(np.mean(np.array(vars)))
-    print(f'General mean {gnrMean} general std {gnrStd}')
+
+    #startMeasure = time.time()
+    #indexes = [random.randrange(0, 29820) for i in range(10)]
+    #for i in tqdm(range(0, 10)):
+    #    p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
+    #    p.start()
+    #    processes.append(p)
+
+    #for p in processes:
+    #    p.join()
+    #endMeasure = time.time()
+
+    #print(f'Total time {endMeasure-startMeasure}')
+
+    #gnrMean = np.mean(np.array(means))
+    #gnrStd = np.sqrt(np.mean(np.array(vars)))
+    #print(f'General mean {gnrMean} general std {gnrStd}')
