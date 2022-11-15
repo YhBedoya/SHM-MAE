@@ -19,12 +19,13 @@ import librosa
 import librosa.display
 from scipy import signal
 from tqdm import tqdm
+import multiprocessing
 
 class SHMDataset(Dataset):
 
-    def __init__(self, data_path):
+    def __init__(self):
         self.start_time, self.end_time = "05/12/2021 23:30", "06/12/2021 00:00"
-        self.path = data_path #"/home/yhbedoya/Repositories/SHM-MAE/traffic/"
+        self.path = "/home/yhbedoya/Repositories/SHM-MAE/traffic/"
         self.data = self._readCSV()
         self.sampleRate = 100
         self.frameLength = 128
@@ -38,16 +39,13 @@ class SHMDataset(Dataset):
         return self.totalWindows
 
     def __getitem__(self, index):
-        #startTime = time.time()
         for k,v in self.partitions.items():
             if index in range(v[0], v[1]):
                 sensorData = self.data[self.data['sens_pos']==k]
-                start = sensorData.index[0]+(index-sensorData.index[0])*self.windowStep
-                slice = sensorData[start:start+self.windowLength]["z"]
+                start = sensorData.index[0]+(index-v[0])*self.windowStep
+                slice = self.data.iloc[start:start+self.windowLength]["z"]
                 frequencies, times, spectrogram = self._transformation(slice)
-                #endTime = time.time()
-                #print(f"Item time: {endTime-startTime}")
-                return spectrogram, None
+                return frequencies, times, spectrogram
 
     def _readCSV(self):
         startTime = time.time()
@@ -94,7 +92,7 @@ class SHMDataset(Dataset):
             end = cumulatedWindows
             partitions[sensor]= (start, end)
             
-        print(cumulatedWindows)
+        print(f'Total number of data points {cumulatedWindows}')
         endTime = time.time()
         print(f"partitioner time: {endTime-startTime}")
         return partitions, cumulatedWindows
@@ -108,26 +106,50 @@ class SHMDataset(Dataset):
 
     
 
-def plotSpect(frequencies, times, spectrogram):
+def plotSpect(frequencies, times, spectrogram, index):
     print(spectrogram.shape)
     plt.figure(figsize=(10, 5))
     plt.title('spectrogram from PSD')
-    plt.pcolormesh(times, frequencies, 10*np.log10(spectrogram))
+    plt.pcolormesh(times, frequencies, 10*np.log10(spectrogram), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
+    plt.savefig(f'../spect/{index}.png')
+
+def task(gen, i):
+    frequencies, times, spectrogram = gen[i]
 
 
 if __name__ == "__main__":
     timer = list()
     gen = SHMDataset()
-    for i in tqdm(range(100)):
-        startMeasure = time.time()
-        frequencies, times, spectrogram = gen[i]
-        endMeasure = time.time()
-        timer.append(endMeasure-startMeasure)
-        if random.random() < 0.01:
-            plotSpect(frequencies, times, spectrogram)
-    print(f"Mean item time {np.mean(np.array(timer))}")
+    means = []
+    vars = []
+    processes = []
+    #indexes = [random.randrange(0, 187300) for i in range(1000)]
+    #indexes = range(0, 187300)
+    #for i in tqdm(indexes):
+    #    startMeasure = time.time()
+    #    frequencies, times, spectrogram = gen[i]
+    #    means.append(np.mean(spectrogram))
+    #    vars.append(np.var(spectrogram))
+    #    endMeasure = time.time()
+    #    timer.append(endMeasure-startMeasure)
 
+        #plotSpect(frequencies, times, spectrogram, i)
+    #gnrMean = np.mean(np.array(means))
+    #gnrStd = np.sqrt(np.mean(np.array(vars)))
 
+    startMeasure = time.time()
+    for i in range(0, 1000):
+        p = multiprocessing.Process(target = task, args=(gen, i))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+    endMeasure = time.time()
+
+    print(f'Total time {endMeasure-startMeasure}')
+
+    #print(f'General mean {gnrMean} general std {gnrStd}')

@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 import math
 import time
+import torchvision
 
 from scipy import signal
 
@@ -24,21 +25,21 @@ class SHMDataset(Dataset):
         self.windowStep = 100
         self.sensors = self._getSensors()
         self.partitions, self.totalWindows = self._partitioner()
+        self.Normalizer = torchvision.transforms.Normalize(mean=[3.4097461665559692e-09], std=[7.084612319364556e-09])
 
     def __len__(self):
         return self.totalWindows
 
     def __getitem__(self, index):
-        #startTime = time.time()
-        print()
         for k,v in self.partitions.items():
             if index in range(v[0], v[1]):
                 sensorData = self.data[self.data['sens_pos']==k]
-                start = sensorData.index[0]+(index-sensorData.index[0])*self.windowStep
-                slice = sensorData[start:start+self.windowLength]["z"]
+                start = sensorData.index[0]+(index-v[0])*self.windowStep
+                slice = self.data.iloc[start:start+self.windowLength]["z"]
                 print(f'Index: {index}, shape {slice.shape}')
                 frequencies, times, spectrogram = self._transformation(slice)
-                return torch.tensor(spectrogram), None
+                signal = self.Normalizer(spectrogram)
+                return torch.tensor(signal), None
 
     def _readCSV(self):
         start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
@@ -81,7 +82,7 @@ class SHMDataset(Dataset):
             end = cumulatedWindows
             partitions[sensor]= (start, end)
             
-        print(cumulatedWindows)
+        print(f'Total number of data points {cumulatedWindows}')
         endTime = time.time()
         print(f"partitioner time: {endTime-startTime}")
         return partitions, cumulatedWindows
