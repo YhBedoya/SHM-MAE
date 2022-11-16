@@ -39,9 +39,9 @@ class CyclicShift(nn.Module):
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
-        self.fn = fn
+        self.fn = torch.tensor(fn, dtype=torch.float64) #TODO: erase type
     def forward(self, x, **kwargs):
-        return self.fn(x, **kwargs) + x
+        return self.fn(x, **kwargs) + torch.tensor(x, dtype=torch.float64)
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
