@@ -33,15 +33,15 @@ class SHMDataset(Dataset):
     def __getitem__(self, index):
         for k,v in self.partitions.items():
             if index in range(v[0], v[1]):
-                print(f'index: {index}')
+                #print(f'index: {index}')
                 sensorData = self.data[self.data['sens_pos']==k]
                 start = sensorData.index[0]+(index-v[0])*self.windowStep
                 slice = self.data.iloc[start:start+self.windowLength]["z"]
                 frequencies, times, spectrogram = self._transformation(slice)
                 spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
                 NormSpect = self.Normalizer(spectrogram)
-                print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-                return NormSpect, None
+                #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
+                return NormSpect, 0
 
     def _readCSV(self):
         start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')

@@ -137,7 +137,8 @@ if __name__ == "__main__":
     vars = manager.list()
 
     #indexes = [random.randrange(0, 29820) for i in range(10)]
-    indexes = range(0, len(gen))
+    #indexes = range(0, len(gen))
+    indexes = [714]
     for i in tqdm(indexes):
         #print(f'Index: {i}')
         startMeasure = time.time()
