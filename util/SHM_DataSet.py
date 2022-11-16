@@ -41,7 +41,7 @@ class SHMDataset(Dataset):
                 spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
                 NormSpect = self.Normalizer(spectrogram)
                 #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-                return NormSpect, 0
+                return torch.transpose(NormSpect, 1, 2), 0
 
     def _readCSV(self):
         start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
