@@ -16,7 +16,7 @@ class PatchEmbed(nn.Module):
         self.patch_size = patch_size
         self.num_patches = num_patches
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, dtype=torch.float64) #TODO: erase dtype if not valid
+        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -39,9 +39,9 @@ class CyclicShift(nn.Module):
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
-        self.fn = torch.tensor(fn, dtype=torch.float64) #TODO: erase type
+        self.fn = fn
     def forward(self, x, **kwargs):
-        return self.fn(x, **kwargs) + torch.tensor(x, dtype=torch.float64)
+        return self.fn(x, **kwargs) + x
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
