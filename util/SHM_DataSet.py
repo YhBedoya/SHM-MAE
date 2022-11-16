@@ -19,9 +19,9 @@ class SHMDataset(Dataset):
         self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/'
         self.data = self._readCSV()
         self.sampleRate = 100
-        self.frameLength = 128
-        self.stepLength = 8
-        self.windowLength= 1000
+        self.frameLength = 198
+        self.stepLength = 10
+        self.windowLength= 990
         self.windowStep = 100
         self.sensors = self._getSensors()
         self.partitions, self.totalWindows = self._partitioner()
