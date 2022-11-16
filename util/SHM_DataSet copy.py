@@ -49,7 +49,6 @@ class SHMDataset(Dataset):
                 frequencies, times, spectrogram = self._transformation(slice)
                 spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
                 NormSpect = self.Normalizer(spectrogram)
-                print(f'Shape: {NormSpect.shape}')
 
                 return frequencies, times, spectrogram
 
@@ -113,7 +112,6 @@ class SHMDataset(Dataset):
     
 
 def plotSpect(frequencies, times, spectrogram, index):
-    print(spectrogram.shape)
     plt.figure(figsize=(10, 5))
     plt.title('spectrogram from PSD')
     plt.pcolormesh(times, frequencies, 10*np.log10(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
@@ -124,9 +122,9 @@ def plotSpect(frequencies, times, spectrogram, index):
 
 def task(gen, i):
     frequencies, times, spectrogram = gen[i]
-    means.append(np.mean(spectrogram))
-    vars.append(np.var(spectrogram))
-
+    #means.append(np.mean(spectrogram))
+    #vars.append(np.var(spectrogram))
+    plotSpect(frequencies, times, spectrogram, i)
 
 
 if __name__ == "__main__":
@@ -153,7 +151,8 @@ if __name__ == "__main__":
     #gnrStd = np.sqrt(np.mean(np.array(vars)))
 
     startMeasure = time.time()
-    indexes = [random.randrange(0, 187200) for i in range(10)] + range(187200, 187305)
+    #indexes = [random.randrange(0, 187200) for i in range(1000)]
+    indexes = range(56700, 56900)
     for i in tqdm(range(0, len(indexes))):
         p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
         p.start()
@@ -165,6 +164,6 @@ if __name__ == "__main__":
 
     print(f'Total time {endMeasure-startMeasure}')
 
-    gnrMean = np.mean(np.array(means))
-    gnrStd = np.sqrt(np.mean(np.array(vars)))
-    print(f'General mean {gnrMean} general std {gnrStd}')
+    #gnrMean = np.mean(np.array(means))
+    #gnrStd = np.sqrt(np.mean(np.array(vars)))
+    #print(f'General mean {gnrMean} general std {gnrStd}')
