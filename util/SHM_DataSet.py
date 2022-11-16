@@ -38,7 +38,7 @@ class SHMDataset(Dataset):
                 start = sensorData.index[0]+(index-v[0])*self.windowStep
                 slice = self.data.iloc[start:start+self.windowLength]["z"]
                 frequencies, times, spectrogram = self._transformation(slice)
-                spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
+                spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float16), 0)
                 NormSpect = self.Normalizer(spectrogram)
                 #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
                 return torch.transpose(NormSpect, 1, 2), 0
