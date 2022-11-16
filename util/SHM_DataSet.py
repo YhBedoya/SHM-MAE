@@ -15,7 +15,7 @@ from scipy import signal
 class SHMDataset(Dataset):
 
     def __init__(self, data_path):
-        self.start_time, self.end_time = "05/12/2021 23:30", "06/12/2021 00:00"
+        self.start_time, self.end_time = "05/12/2021 23:59", "06/12/2021 00:00"
         self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/'
         self.data = self._readCSV()
         self.sampleRate = 100
@@ -33,13 +33,14 @@ class SHMDataset(Dataset):
     def __getitem__(self, index):
         for k,v in self.partitions.items():
             if index in range(v[0], v[1]):
+                print(f'index: {index}')
                 sensorData = self.data[self.data['sens_pos']==k]
                 start = sensorData.index[0]+(index-v[0])*self.windowStep
                 slice = self.data.iloc[start:start+self.windowLength]["z"]
                 frequencies, times, spectrogram = self._transformation(slice)
                 spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
                 NormSpect = self.Normalizer(spectrogram)
-                print(f'index: {index}, type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
+                print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
                 return NormSpect, None
 
     def _readCSV(self):

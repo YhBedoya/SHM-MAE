@@ -24,7 +24,7 @@ import torchvision
 class SHMDataset(Dataset):
 
     def __init__(self):
-        self.start_time, self.end_time = "05/12/2021 23:55", "06/12/2021 00:00"
+        self.start_time, self.end_time = "05/12/2021 23:59", "06/12/2021 00:00"
         self.path = "/home/yhbedoya/Repositories/SHM-MAE/traffic/"
         self.data = self._readCSV()
         self.sampleRate = 100
@@ -49,8 +49,7 @@ class SHMDataset(Dataset):
                 frequencies, times, spectrogram = self._transformation(slice)
                 spectrogram = torch.unsqueeze(torch.tensor(spectrogram), 0)
                 NormSpect = self.Normalizer(spectrogram)
-                
-                print(NormSpect.shape)
+
                 return frequencies, times, spectrogram
 
     def _readCSV(self):
@@ -116,7 +115,7 @@ def plotSpect(frequencies, times, spectrogram, index):
     print(spectrogram.shape)
     plt.figure(figsize=(10, 5))
     plt.title('spectrogram from PSD')
-    plt.pcolormesh(times, frequencies, 10*np.log10(spectrogram), vmin=-150, vmax=-50)
+    plt.pcolormesh(times, frequencies, 10*np.log10(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
@@ -137,19 +136,20 @@ if __name__ == "__main__":
     means = manager.list()
     vars = manager.list()
 
-    indexes = [random.randrange(0, 29820) for i in range(10)]
-    #indexes = range(0, 187300)
+    #indexes = [random.randrange(0, 29820) for i in range(10)]
+    indexes = range(0, len(gen))
     for i in tqdm(indexes):
+        #print(f'Index: {i}')
         startMeasure = time.time()
         frequencies, times, spectrogram = gen[i]
-        means.append(np.mean(spectrogram))
-        vars.append(np.var(spectrogram))
+        #means.append(np.mean(spectrogram))
+        #vars.append(np.var(spectrogram))
         endMeasure = time.time()
         timer.append(endMeasure-startMeasure)
 
-        plotSpect(frequencies, times, spectrogram, i)
-    gnrMean = np.mean(np.array(means))
-    gnrStd = np.sqrt(np.mean(np.array(vars)))
+        #plotSpect(frequencies, times, spectrogram, i)
+    #gnrMean = np.mean(np.array(means))
+    #gnrStd = np.sqrt(np.mean(np.array(vars)))
 
     #startMeasure = time.time()
     #indexes = [random.randrange(0, 29820) for i in range(10)]
