@@ -35,7 +35,7 @@ class SHMDataset(Dataset):
         slice = self.data[start:end]
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
-        NormSpect = self.Normalizer(spectrogram)
+        NormSpect = self.Normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
         return torch.transpose(NormSpect, 1, 2), 0
 
@@ -86,11 +86,11 @@ class SHMDataset(Dataset):
                     limits[index] = (start, start+self.windowLength)
                     break
 
-        return self.data["z"].to_numpy(dtype=np.float64), limits, cumulatedWindows
+        return torch.tensor(self.data["z"].values, dtype=torch.float64), limits, cumulatedWindows
 
     def _transformation(self, slice):
         
-        sliceN = slice-np.mean(slice)
+        sliceN = slice-torch.mean(slice)
         frequencies, times, spectrogram = signal.spectrogram(sliceN,self.sampleRate,nfft=self.frameLength,noverlap=(self.frameLength - self.stepLength), nperseg=self.frameLength,mode='psd')
 
         return frequencies, times, spectrogram
