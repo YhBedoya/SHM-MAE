@@ -89,7 +89,7 @@ class SHMDataset(Dataset):
                     std = torch.std(timeData[start: start+self.windowLength])
                     if std > 0.001:
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, std)
+                        limits[cummulator] = (start, start+self.windowLength)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         means.append(torch.mean(torch.tensor(spectrogram, dtype=torch.float64)))
@@ -97,9 +97,9 @@ class SHMDataset(Dataset):
                         break
         print(f'Total windows in dataset: {cummulator}')
         gnrMean = torch.mean(torch.tensor(means, dtype=torch.float64))
-        gnrStd = torch.sqrt(torch.mean(torch.tensor(means, dtype=torch.float64)))
-        print(f'Total windows in dataset: {gnrMean}')
-        print(f'Total windows in dataset: {gnrStd}')
+        gnrStd = torch.sqrt(torch.mean(torch.tensor(vars, dtype=torch.float64)))
+        print(f'General dataset mean: {gnrMean}')
+        print(f'General dataset std: {gnrStd}')
         return timeData, limits, cummulator, gnrMean, gnrStd
 
     def _transformation(self, slice):
