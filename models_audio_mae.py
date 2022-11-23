@@ -104,7 +104,7 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def patchify(self, imgs):
         """
         imgs: (N, 1, H, W)
-        x: (N, L, patch_size**2 *3)
+        x: (N, L, patch_size**2)
         """
         p = self.patch_embed.patch_size[0]
 
@@ -117,16 +117,18 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
     def unpatchify(self, x):
         """
-        x: (N, L, patch_size**2 *3)
-        imgs: (N, 3, H, W)
+        x: (N, L, patch_size**2)
+        imgs: (N, 1, H, W)
         """
-        p = self.patch_embed.patch_size[0]
-        h = w = int(x.shape[1] ** .5)
+        p = self.patch_embed.patch_size[0] #5
+
+        h = self.grid_h
+        w = self.grid_w
         assert h * w == x.shape[1]
 
-        x = x.reshape(shape=(x.shape[0], h, w, p, p, 3))
+        x = x.reshape(shape=(x.shape[0], h, w, p, p, 1))
         x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], 3, h * p, h * p))
+        imgs = x.reshape(shape=(x.shape[0], 1, h * p, h * p))
         return imgs
 
     def random_masking(self, x, mask_ratio):

@@ -81,6 +81,7 @@ class SHMDataset(Dataset):
         means = list()
         vars = list()
         print(f'Defining windows limits')
+        noiseFreeSpaces = 1
         for index in tqdm(range(0, cumulatedWindows)):
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
@@ -94,7 +95,17 @@ class SHMDataset(Dataset):
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         means.append(torch.mean(torch.tensor(spectrogram, dtype=torch.float64)))
                         vars.append(torch.var(torch.tensor(spectrogram, dtype=torch.float64)))
-                        break
+                        noiseFreeSpaces += 1
+                        
+                    elif noiseFreeSpaces > 0:
+                        cummulator += 1
+                        limits[cummulator] = (start, start+self.windowLength)
+                        slice = timeData[start:start+self.windowLength]
+                        frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
+                        means.append(torch.mean(torch.tensor(spectrogram, dtype=torch.float64)))
+                        vars.append(torch.var(torch.tensor(spectrogram, dtype=torch.float64)))
+                        noiseFreeSpaces -= 1
+                    break
         print(f'Total windows in dataset: {cummulator}')
         gnrMean = torch.mean(torch.tensor(means, dtype=torch.float64))
         gnrStd = torch.sqrt(torch.mean(torch.tensor(vars, dtype=torch.float64)))
