@@ -128,7 +128,7 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p, 1))
         x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], 1, h * p, h * p))
+        imgs = x.reshape(shape=(x.shape[0], 1, h * p, w * p))
         return imgs
 
     def random_masking(self, x, mask_ratio):
