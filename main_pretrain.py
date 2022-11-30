@@ -83,13 +83,13 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default="/home/yvelez/sacertis/traffic/20211205/", type=str,  #TODO: data dir
-                        help='dataset path')
+    parser.add_argument('--data_path', default="/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/", type=str,  #TODO: data dir
+                        help='dataset path') #"/home/yvelez/sacertis/traffic/20211205/"
 
-    parser.add_argument('--output_dir', default='/home/yvelez/SHM-MAE/output_dir',
-                        help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='/home/yvelez/SHM-MAE/output_dir',
-                        help='path where to tensorboard log')
+    parser.add_argument('--output_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir',
+                        help='path where to save, empty for no saving') #/home/yvelez/SHM-MAE/output_dir
+    parser.add_argument('--log_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir',
+                        help='path where to tensorboard log') #/home/yvelez/SHM-MAE/output_dir
     parser.add_argument('--device', default='cuda',  #TODO:cuda
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=0, type=int)
