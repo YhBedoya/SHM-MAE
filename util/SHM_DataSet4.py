@@ -5,8 +5,8 @@ import pandas as pd
 from datetime import datetime
 import os
 import math
-import torchvision
 from tqdm import tqdm
+import numpy as np
 
 from scipy import signal
 
@@ -84,7 +84,6 @@ class SHMDataset(Dataset):
         for index in tqdm(range(0, cumulatedWindows)):
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
-                #print(f'index: {index}')
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     amp = np.max(filteredSlice)-np.min(filteredSlice)
@@ -93,40 +92,38 @@ class SHMDataset(Dataset):
                         limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(torch.min(torch.tensor(spectrogram, dtype=torch.float64)))
-                        maxs.append(torch.max(torch.tensor(spectrogram, dtype=torch.float64)))
+                        mins.append(np.min(np.array(spectrogram)))
+                        maxs.append(np.max(np.array(spectrogram)))
                         noiseFreeSpaces += 1
                         
-                    elif True:
+                    elif noiseFreeSpaces>0:
                         cummulator += 1
                         limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(torch.min(torch.tensor(spectrogram, dtype=torch.float64)))
-                        maxs.append(torch.max(torch.tensor(spectrogram, dtype=torch.float64)))
+                        mins.append(np.min(np.array(spectrogram)))
+                        maxs.append(np.max(np.array(spectrogram)))
                         noiseFreeSpaces -= 1
                     break
         print(f'Total windows in dataset: {cummulator}')
-        min = torch.min(torch.tensor(mins, dtype=torch.float64))
-        max = torch.max(torch.tensor(mins, dtype=torch.float64))
+        min = np.min(np.array(mins))
+        max = np.percentile(maxs, 99)
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
 
     def _transformation(self, slice):
-        
         sliceN = slice-torch.mean(slice)
         frequencies, times, spectrogram = signal.spectrogram(sliceN,self.sampleRate,nfft=self.frameLength,noverlap=(self.frameLength - self.stepLength), nperseg=self.frameLength,mode='psd')
 
         return frequencies, times, spectrogram
     
     def _normalizer(self, spectrogram):
-        spectrogramNorm = (spectrogram - self.min) / (self.max - self.min)
-
+        spectrogramNorm = torch.clamp((spectrogram - self.min) / self.max, min=0, max=1)
         return spectrogramNorm
     
     def butter_bandpass(self, lowcut, highcut, fs, order=5):
-        return signal.butter(order, [5, 20], fs=fs, btype='band')
+        return signal.butter(order, [1, 49], fs=fs, btype='band')
 
     def butter_bandpass_filter(self, slice, lowcut, highcut, fs, order=5):
         sliceN = slice-np.mean(np.array(slice))

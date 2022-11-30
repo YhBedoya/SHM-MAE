@@ -42,7 +42,7 @@ class SHMDataset(Dataset):
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return frequencies, times, torch.squeeze(spectrogram), std
+        return frequencies, times, NormSpect, std
 
     def _readCSV(self):
         print(f'reading CSV files')
@@ -93,7 +93,6 @@ class SHMDataset(Dataset):
         for index in tqdm(range(0, cumulatedWindows)):
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
-                #print(f'index: {index}')
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     amp = np.max(filteredSlice)-np.min(filteredSlice)
@@ -102,8 +101,8 @@ class SHMDataset(Dataset):
                         limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(torch.min(torch.tensor(spectrogram, dtype=torch.float64)))
-                        maxs.append(torch.max(torch.tensor(spectrogram, dtype=torch.float64)))
+                        mins.append(np.min(np.array(spectrogram)))
+                        maxs.append(np.max(np.array(spectrogram)))
                         noiseFreeSpaces += 1
                         
                     elif True:
@@ -111,31 +110,29 @@ class SHMDataset(Dataset):
                         limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(torch.min(torch.tensor(spectrogram, dtype=torch.float64)))
-                        maxs.append(torch.max(torch.tensor(spectrogram, dtype=torch.float64)))
+                        mins.append(np.min(np.array(spectrogram)))
+                        maxs.append(np.max(np.array(spectrogram)))
                         noiseFreeSpaces -= 1
                     break
         print(f'Total windows in dataset: {cummulator}')
-        min = torch.min(torch.tensor(mins, dtype=torch.float64))
-        max = torch.max(torch.tensor(mins, dtype=torch.float64))
+        min = np.min(np.array(mins))
+        max = np.percentile(maxs, 99)
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
 
     def _transformation(self, slice):
-        
         sliceN = slice-torch.mean(slice)
         frequencies, times, spectrogram = signal.spectrogram(sliceN,self.sampleRate,nfft=self.frameLength,noverlap=(self.frameLength - self.stepLength), nperseg=self.frameLength,mode='psd')
 
         return frequencies, times, spectrogram
     
     def _normalizer(self, spectrogram):
-        spectrogramNorm = (spectrogram - self.min) / (self.max - self.min)
-
+        spectrogramNorm = torch.clamp((spectrogram - self.min) / self.max, min=-0, max=1)
         return spectrogramNorm
     
     def butter_bandpass(self, lowcut, highcut, fs, order=5):
-        return signal.butter(order, [5, 20], fs=fs, btype='band')
+        return signal.butter(order, [1, 49], fs=fs, btype='band')
 
     def butter_bandpass_filter(self, slice, lowcut, highcut, fs, order=5):
         sliceN = slice-np.mean(np.array(slice))
@@ -170,16 +167,22 @@ if __name__ == "__main__":
     means = manager.list()
     vars = manager.list()
 
-    indexes = [random.randrange(0, len(gen)) for i in range(50000)]
-    #indexes = range(0,len(gen))
-    #for i in tqdm(indexes):
+    #indexes = [random.randrange(0, len(gen)) for i in range(50000)]
+    indexes = range(0,len(gen))
+    maxs = []
+    for i in tqdm(indexes):
         #print(f'Index: {i}')
         #startMeasure = time.time()
-    #    frequencies, times, spectrogram, std = gen[i]
+        frequencies, times, spectrogram, std = gen[i]
+        maxs.append(torch.max(spectrogram))
         #means.append(np.mean(spectrogram))
         #vars.append(np.var(spectrogram))
         #endMeasure = time.time()
         #timer.append(endMeasure-startMeasure)
+    plt.hist(maxs, bins=50, alpha=0.5, label='Maximums dist')
+    #plt.ylim([0,10])
+    #plt.xlim([0,2])
+    plt.show()
 
     #    plotSpect(frequencies, times, spectrogram, i, std)
     #gnrMean = np.mean(np.array(means))
@@ -188,18 +191,18 @@ if __name__ == "__main__":
     #startMeasure = time.time()
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
     #indexes = range(56700, 56900)
-    batchSize = 100
-    batches = math.floor(len(indexes)/batchSize)
-    for batchNumber in tqdm(range(0, batches)):
-        start= batchSize*batchNumber
-        indexBatch = range(start,start+batchSize)
-        for i in indexBatch:
-            p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
-            p.start()
-            processes.append(p)
+    #batchSize = 100
+    #batches = math.floor(len(indexes)/batchSize)
+    #for batchNumber in tqdm(range(0, batches)):
+    #    start= batchSize*batchNumber
+    #    indexBatch = range(start,start+batchSize)
+    #    for i in indexBatch:
+    #        p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
+    #        p.start()
+    #        processes.append(p)
 
-        for p in processes:
-            p.join()
+    #    for p in processes:
+    #        p.join()
     #endMeasure = time.time()
 
     #print(f'Total time {endMeasure-startMeasure}')
