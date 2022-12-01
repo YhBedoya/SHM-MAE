@@ -76,6 +76,9 @@ class SHMDataset(Dataset):
 
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
         cummulator = -1
+        posCummulator = 0
+        negCummulator = 0
+
 
         mins = list()
         maxs = list()
@@ -88,6 +91,7 @@ class SHMDataset(Dataset):
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     amp = np.max(filteredSlice)-np.min(filteredSlice)
                     if amp > 0.01:
+                        posCummulator +=1 
                         cummulator += 1
                         limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
@@ -97,6 +101,7 @@ class SHMDataset(Dataset):
                         noiseFreeSpaces += 1
                         
                     elif noiseFreeSpaces>0:
+                        negCummulator +=1
                         cummulator += 1
                         limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
@@ -108,6 +113,8 @@ class SHMDataset(Dataset):
         print(f'Total windows in dataset: {cummulator}')
         min = np.min(np.array(mins))
         max = np.percentile(maxs, 99)
+        print(f'Total positive instances: {min}')
+        print(f'Total noisy instances: {max}')        
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
