@@ -112,9 +112,9 @@ class SHMDataset(Dataset):
                     break
         print(f'Total windows in dataset: {cummulator}')
         min = np.min(np.array(mins))
-        max = np.percentile(maxs, 99)
-        print(f'Total positive instances: {min}')
-        print(f'Total noisy instances: {max}')        
+        max = np.min(np.array(maxs))
+        print(f'Total positive instances: {posCummulator}')
+        print(f'Total noisy instances: {negCummulator}')        
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
