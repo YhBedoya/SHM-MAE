@@ -112,7 +112,7 @@ class SHMDataset(Dataset):
                     break
         print(f'Total windows in dataset: {cummulator}')
         min = np.min(np.array(mins))
-        max = np.min(np.array(maxs))
+        max = np.max(np.array(maxs))
         print(f'Total positive instances: {posCummulator}')
         print(f'Total noisy instances: {negCummulator}')        
         print(f'General min: {min}')
@@ -123,10 +123,10 @@ class SHMDataset(Dataset):
         sliceN = slice-torch.mean(slice)
         frequencies, times, spectrogram = signal.spectrogram(sliceN,self.sampleRate,nfft=self.frameLength,noverlap=(self.frameLength - self.stepLength), nperseg=self.frameLength,mode='psd')
 
-        return frequencies, times, spectrogram
+        return frequencies, times, np.log10(spectrogram)
     
     def _normalizer(self, spectrogram):
-        spectrogramNorm = torch.clamp((spectrogram - self.min) / self.max, min=0, max=1)
+        spectrogramNorm = (spectrogram - self.min) / (self.max - self.min)
         return spectrogramNorm
     
     def butter_bandpass(self, lowcut, highcut, fs, order=5):
