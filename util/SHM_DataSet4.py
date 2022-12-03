@@ -13,7 +13,7 @@ from scipy import signal
 class SHMDataset(Dataset):
 
     def __init__(self, data_path):
-        self.start_time, self.end_time = "05/12/2021 00:00", "06/12/2021 00:00"
+        self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 23:00"
         self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/'
         self.data = self._readCSV()
         self.sampleRate = 100
