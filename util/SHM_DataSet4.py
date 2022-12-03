@@ -64,7 +64,8 @@ class SHMDataset(Dataset):
         partitions = {}
         cumulatedWindows = 0
         limits = dict()
-        for sensor in sensors:
+        print(f'Generating windows')
+        for sensor in tqdm(sensors):
             sensorData = self.data[self.data['sens_pos']==sensor]
             totalFrames = sensorData.shape[0]
             totalWindows = math.ceil((totalFrames-self.windowLength)/self.windowStep)
@@ -82,7 +83,7 @@ class SHMDataset(Dataset):
 
         mins = list()
         maxs = list()
-        print(f'Defining windows limits')
+        print(f'Defining useful windows limits')
         noiseFreeSpaces = 1
         for index in tqdm(range(0, cumulatedWindows)):
             for k,v in partitions.items():
@@ -90,7 +91,7 @@ class SHMDataset(Dataset):
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     amp = np.max(filteredSlice)-np.min(filteredSlice)
-                    if amp > 0.01:
+                    if amp > 0.0075:
                         posCummulator +=1 
                         cummulator += 1
                         limits[cummulator] = (start, start+self.windowLength, amp)
@@ -114,7 +115,8 @@ class SHMDataset(Dataset):
         min = np.min(np.array(mins))
         max = np.max(np.array(maxs))
         print(f'Total positive instances: {posCummulator}')
-        print(f'Total noisy instances: {negCummulator}')        
+        print(f'Total noisy instances: {negCummulator}')
+        print(f'Proportion of useful instances {(posCummulator+negCummulator)/cumulatedWindows}')       
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
