@@ -134,3 +134,4 @@ dmypy.json
 *.out
 *.csv
 *.png
+*.pth
