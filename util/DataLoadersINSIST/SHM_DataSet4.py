@@ -65,12 +65,15 @@ class SHMDataset(Dataset):
             sens = df["sens_pos"][i]
             
             for idx, data in enumerate(data_splited):
-                if idx == 0:
-                    z = int(data[1:])
-                elif idx == len(data_splited)-1:
-                    z = int(data[:-1])
-                else:
-                    z = int(data)
+                try:
+                    if idx == 0:
+                        z = int(data[1:])
+                    elif idx == len(data_splited)-1:
+                        z = int(data[:-1])
+                    else:
+                        z = int(data)
+                except:
+                    print(idx, data)
                 new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
                 new_dict["z"].append(z * conv)
                 new_dict["sens_pos"].append(sens)
