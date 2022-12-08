@@ -104,7 +104,7 @@ class SHMDataset(Dataset):
         print(f'Defining useful windows limits')
         noiseFreeSpaces = 1
         for index in tqdm(range(0, cumulatedWindows)):
-            if cummulator >= 100000:
+            if cummulator >= 20000:
                 break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
