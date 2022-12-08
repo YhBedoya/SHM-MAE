@@ -45,7 +45,7 @@ class SHMDataset(Dataset):
         for x in range(self.num_days):
             yy, mm, dd = (self.day_start + datetime.timedelta(days=x)).strftime('%Y,%m,%d').split(",")
             date = f"{int(yy)}{int(mm)}{int(dd)}"
-            df = pd.read_csv(self.path / f"ss335-acc-{date}.csv")
+            df = pd.read_csv(self.path + f"ss335-acc-{date}.csv")
             ldf.append(df.drop(['x','y', "year", "month", "day", "Unnamed: 0"], axis=1))
         df = pd.concat(ldf).sort_values(by=['sens_pos', 'ts'])
         df = df.reset_index(drop=True)
