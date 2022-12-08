@@ -58,7 +58,9 @@ class SHMDataset(Dataset):
         conv = (1*2.5)*2**-15
 
         for i in tqdm(range(len(df))):
-            data_splited = df["z"][i].split(" ")
+            row = df["z"][i].copy(deep=True)
+            data_splited = row.replace("\n", "").replace("[", "").replace("]", "").split(" ")
+            #data_splited = df["z"][i].split(" ")
             ts = datetime.datetime.utcfromtimestamp(df["ts"][i]/1000)
             sens = df["sens_pos"][i]
             
