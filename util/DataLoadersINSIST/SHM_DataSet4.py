@@ -3,6 +3,7 @@ import torch
 import glob
 import pandas as pd
 from datetime import datetime
+from datetime import date
 import os
 import math
 from tqdm import tqdm
@@ -15,9 +16,9 @@ from pathlib import Path
 class SHMDataset(Dataset):
 
     def __init__(self, data_path):
-        self.day_start = datetime.date(2019,5,10)
+        self.day_start = date(2019,5,10)
         self.num_days = 1
-        self.path = Path("/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/")
+        self.path = data_path #Path("/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/")
         self.data = self._readCSV()
         self.sampleRate = 100
         self.frameLength = 198
