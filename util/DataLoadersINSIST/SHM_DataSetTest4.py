@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 #import librosa.display
 import numpy as np
 import pandas as pd
-from datetime import datetime
 import os
 import math
 import time
@@ -25,7 +24,7 @@ import datetime
 class SHMDataset(Dataset):
 
     def __init__(self):
-        self.day_start = datetime.date(2019,4,17)
+        self.day_start = datetime.date(2019,5,10)
         self.num_days = 1
         self.path = Path("/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/")
         self.data = self._readCSV()
@@ -68,17 +67,16 @@ class SHMDataset(Dataset):
         conv = (1*2.5)*2**-15
 
         for i in tqdm(range(len(df))):
-            data_splited = df["z"][i].split(" ")
+            row = df["z"][i]
+            data_splited = row.replace("\n", "").replace("[", "").replace("]", "").split(" ")
+            #data_splited = df["z"][i].split(" ")
             ts = datetime.datetime.utcfromtimestamp(df["ts"][i]/1000)
             sens = df["sens_pos"][i]
             
             for idx, data in enumerate(data_splited):
-                if idx == 0:
-                    z = int(data[1:])
-                elif idx == len(data_splited)-1:
-                    z = int(data[:-1])
-                else:
-                    z = int(data)
+                if data == "":
+                    continue
+                z = int(data)  
                 new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
                 new_dict["z"].append(z * conv)
                 new_dict["sens_pos"].append(sens)

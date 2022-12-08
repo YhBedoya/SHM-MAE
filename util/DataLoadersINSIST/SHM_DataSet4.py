@@ -65,16 +65,9 @@ class SHMDataset(Dataset):
             sens = df["sens_pos"][i]
             
             for idx, data in enumerate(data_splited):
-                try:
-                    if idx == 0:
-                        z = int(data[1:])
-                    elif idx == len(data_splited)-1:
-                        z = int(data[:-1])
-                    else:
-                        z = int(data)
-                except:
-                    print(df["z"][i])
+                if data == "":
                     continue
+                z = int(data)  
                 new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
                 new_dict["z"].append(z * conv)
                 new_dict["sens_pos"].append(sens)
@@ -111,6 +104,8 @@ class SHMDataset(Dataset):
         print(f'Defining useful windows limits')
         noiseFreeSpaces = 1
         for index in tqdm(range(0, cumulatedWindows)):
+            if cummulator >= 100000:
+                break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
