@@ -73,7 +73,8 @@ class SHMDataset(Dataset):
                     else:
                         z = int(data)
                 except:
-                    print(idx, data)
+                    print(df["z"][i])
+                    continue
                 new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
                 new_dict["z"].append(z * conv)
                 new_dict["sens_pos"].append(sens)
