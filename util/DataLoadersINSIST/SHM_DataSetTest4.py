@@ -26,7 +26,7 @@ class SHMDataset(Dataset):
     def __init__(self):
         self.day_start = datetime.date(2019,5,10)
         self.num_days = 1
-        self.path = Path("/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/")
+        self.path = "/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/"
         self.data = self._readCSV()
         self.sampleRate = 100
         self.frameLength = 198
@@ -54,7 +54,7 @@ class SHMDataset(Dataset):
         for x in range(self.num_days):
             yy, mm, dd = (self.day_start + datetime.timedelta(days=x)).strftime('%Y,%m,%d').split(",")
             date = f"{int(yy)}{int(mm)}{int(dd)}"
-            df = pd.read_csv(self.path / f"ss335-acc-{date}.csv")
+            df = pd.read_csv(self.path + f"ss335-acc-{date}.csv")
             ldf.append(df.drop(['x','y', "year", "month", "day", "Unnamed: 0"], axis=1))
         df = pd.concat(ldf).sort_values(by=['sens_pos', 'ts'])
         df = df.reset_index(drop=True)
@@ -66,6 +66,7 @@ class SHMDataset(Dataset):
         }
         conv = (1*2.5)*2**-15
 
+        print(f'Creating the dataframe')
         for i in tqdm(range(len(df))):
             row = df["z"][i]
             data_splited = row.replace("\n", "").replace("[", "").replace("]", "").split(" ")
@@ -82,7 +83,7 @@ class SHMDataset(Dataset):
                 new_dict["sens_pos"].append(sens)
 
         df_new = pd.DataFrame(new_dict)
-
+        print(f'Finish data reading')
         return df_new
 
     def _partitioner(self):
@@ -111,8 +112,13 @@ class SHMDataset(Dataset):
         mins = list()
         maxs = list()
         print(f'Defining useful windows limits')
-        noiseFreeSpaces = 1
-        for index in tqdm(range(0, cumulatedWindows)):
+        noiseFreeSpaces = 0
+        indexes = list(range(0, cumulatedWindows))
+        random.shuffle(indexes)
+
+        for index in tqdm(indexes):
+            if cummulator >= 30000:
+                break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
@@ -202,7 +208,7 @@ if __name__ == "__main__":
     for i in tqdm(indexes):
 
         frequencies, times, spectrogram, std = gen[i]
-        plotSpect(frequencies, times, spectrogram, i, std)
+        #plotSpect(frequencies, times, spectrogram, i, std)
 
     #startMeasure = time.time()
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]

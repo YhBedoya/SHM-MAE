@@ -7,6 +7,7 @@ import os
 import math
 from tqdm import tqdm
 import numpy as np
+import random
 
 from scipy import signal
 
@@ -16,7 +17,7 @@ class SHMDataset(Dataset):
 
     def __init__(self, data_path):
         self.day_start = datetime.date(2019,5,10)
-        self.num_days = 1
+        self.num_days = 3
         self.path = data_path #Path("/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/")
         self.data = self._readCSV()
         self.sampleRate = 100
@@ -57,6 +58,7 @@ class SHMDataset(Dataset):
         }
         conv = (1*2.5)*2**-15
 
+        print(f'Creating the dataframe')
         for i in tqdm(range(len(df))):
             row = df["z"][i]
             data_splited = row.replace("\n", "").replace("[", "").replace("]", "").split(" ")
@@ -73,7 +75,7 @@ class SHMDataset(Dataset):
                 new_dict["sens_pos"].append(sens)
 
         df_new = pd.DataFrame(new_dict)
-
+        print(f'Finish data reading')
         return df_new
 
     def _partitioner(self):
@@ -103,8 +105,11 @@ class SHMDataset(Dataset):
         maxs = list()
         print(f'Defining useful windows limits')
         noiseFreeSpaces = 1
-        for index in tqdm(range(0, cumulatedWindows)):
-            if cummulator >= 20000:
+        indexes = list(range(0, cumulatedWindows))
+        random.shuffle(indexes)
+        
+        for index in tqdm(indexes):
+            if cummulator >= 400000:
                 break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
