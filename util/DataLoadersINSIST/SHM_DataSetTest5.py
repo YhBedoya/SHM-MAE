@@ -39,13 +39,13 @@ class SHMDataset(Dataset):
         return self.totalWindows
 
     def __getitem__(self, index):
-        start, end, std, signalPower = self.limits[index]
+        start, end, power = self.limits[index]
         slice = self.data[start:end]
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return frequencies, times, spectrogram, std, signalPower
+        return frequencies, times, spectrogram, power
 
     def _readCSV(self):
         print(f'reading CSV files')
@@ -107,9 +107,6 @@ class SHMDataset(Dataset):
 
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
         cummulator = -1
-        posCummulator = 0
-        negCummulator = 0
-
 
         mins = list()
         maxs = list()
@@ -125,34 +122,19 @@ class SHMDataset(Dataset):
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
-                    amp = np.max(filteredSlice)-np.min(filteredSlice)
                     signalPower = self.power(filteredSlice)
-                    if amp > 0.0075:
-                        posCummulator +=1 
+
+                    if signalPower>1.25*10**-6:
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp, signalPower)
+                        limits[cummulator] = (start, start+self.windowLength, signalPower)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
                         maxs.append(np.max(np.array(spectrogram)))
-                        noiseFreeSpaces += 1
-                        
-                    elif noiseFreeSpaces>0:
-                        negCummulator +=1
-                        cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp, signalPower)
-                        slice = timeData[start:start+self.windowLength]
-                        frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(np.min(np.array(spectrogram)))
-                        maxs.append(np.max(np.array(spectrogram)))
-                        noiseFreeSpaces -= 1
                     break
         print(f'Total windows in dataset: {cummulator}')
         min = np.min(np.array(mins))
-        max = np.max(np.array(maxs))
-        print(f'Total positive instances: {posCummulator}')
-        print(f'Total noisy instances: {negCummulator}')
-        print(f'Proportion of useful instances {(posCummulator+negCummulator)/cumulatedWindows}')       
+        max = np.max(np.array(maxs))   
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
@@ -166,7 +148,7 @@ class SHMDataset(Dataset):
     def _normalizer(self, spectrogram):
         spectrogramNorm = (spectrogram - self.min) / (self.max - self.min)
         return spectrogramNorm
-    
+
     def butter_bandpass(self, lowcut, highcut, fs, order=5):
         return signal.butter(order, [1, 49], fs=fs, btype='band')
 
@@ -181,22 +163,22 @@ class SHMDataset(Dataset):
         return signalPower
 
     
-def plotSpect(frequencies, times, spectrogram, index, std, signalPower):
+def plotSpect(frequencies, times, spectrogram, index, power):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {signalPower}')
+    plt.title(f'spectrogram from PSD: {power}')
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
-    folder = "positives" if std > 0.0075 else "noise"
+    folder = "positives" if power > 1.25*10**-6 else "noise"
     plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/PowerINSIST/{folder}/{index}.png')
     plt.close()
 
 def task(gen, i):
-    frequencies, times, spectrogram, std = gen[i]
+    frequencies, times, spectrogram, power = gen[i]
     #means.append(np.mean(spectrogram))
     #vars.append(np.var(spectrogram))
-    plotSpect(frequencies, times, spectrogram, i, std)
+    plotSpect(frequencies, times, spectrogram, i, power)
 
 
 if __name__ == "__main__":
@@ -214,8 +196,8 @@ if __name__ == "__main__":
     #maxs = []
     for i in tqdm(indexes):
 
-        frequencies, times, spectrogram, std, signalPower = gen[i]
-        plotSpect(frequencies, times, spectrogram, i, std, signalPower)
+        frequencies, times, spectrogram, power = gen[i]
+        plotSpect(frequencies, times, spectrogram, i, power)
 
     #startMeasure = time.time()
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]

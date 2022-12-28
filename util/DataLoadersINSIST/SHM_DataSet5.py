@@ -1,32 +1,24 @@
 from torch.utils.data import Dataset
 import torch
 import glob
-import matplotlib.pyplot as plt
-#import librosa.display
-import numpy as np
 import pandas as pd
+import datetime
 import os
 import math
-import time
-import matplotlib.pyplot as plt
+from tqdm import tqdm
+import numpy as np
 import random
 
-import librosa
-import librosa.display
 from scipy import signal
-from tqdm import tqdm
-import multiprocessing
-import torchvision
-from pathlib import Path
 
-import datetime
+from pathlib import Path
 
 class SHMDataset(Dataset):
 
-    def __init__(self):
+    def __init__(self, data_path):
         self.day_start = datetime.date(2019,5,24)
-        self.num_days = 1
-        self.path = "/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/"
+        self.num_days = 4
+        self.path = data_path #Path("/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/")
         self.data = self._readCSV()
         self.sampleRate = 100
         self.frameLength = 198
@@ -39,13 +31,13 @@ class SHMDataset(Dataset):
         return self.totalWindows
 
     def __getitem__(self, index):
-        start, end, std, signalPower = self.limits[index]
+        start, end, power = self.limits[index]
         slice = self.data[start:end]
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return frequencies, times, spectrogram, std, signalPower
+        return torch.transpose(NormSpect, 1, 2), 0
 
     def _readCSV(self):
         print(f'reading CSV files')
@@ -81,8 +73,6 @@ class SHMDataset(Dataset):
                 new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
                 new_dict["z"].append(z * conv)
                 new_dict["sens_pos"].append(sens)
-            if i >400000:
-                break
 
         df_new = pd.DataFrame(new_dict)
         print(f'Finish data reading')
@@ -107,52 +97,34 @@ class SHMDataset(Dataset):
 
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
         cummulator = -1
-        posCummulator = 0
-        negCummulator = 0
-
 
         mins = list()
         maxs = list()
         print(f'Defining useful windows limits')
-        noiseFreeSpaces = 0
+        noiseFreeSpaces = 1
         indexes = list(range(0, cumulatedWindows))
         random.shuffle(indexes)
-
+        
         for index in tqdm(indexes):
-            if cummulator >= 30000:
+            if cummulator >= 500000:
                 break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
-                    amp = np.max(filteredSlice)-np.min(filteredSlice)
                     signalPower = self.power(filteredSlice)
-                    if amp > 0.0075:
-                        posCummulator +=1 
+
+                    if signalPower>1.25*10**-6:
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp, signalPower)
+                        limits[cummulator] = (start, start+self.windowLength, amp)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
                         maxs.append(np.max(np.array(spectrogram)))
-                        noiseFreeSpaces += 1
-                        
-                    elif noiseFreeSpaces>0:
-                        negCummulator +=1
-                        cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp, signalPower)
-                        slice = timeData[start:start+self.windowLength]
-                        frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(np.min(np.array(spectrogram)))
-                        maxs.append(np.max(np.array(spectrogram)))
-                        noiseFreeSpaces -= 1
                     break
         print(f'Total windows in dataset: {cummulator}')
         min = np.min(np.array(mins))
-        max = np.max(np.array(maxs))
-        print(f'Total positive instances: {posCummulator}')
-        print(f'Total noisy instances: {negCummulator}')
-        print(f'Proportion of useful instances {(posCummulator+negCummulator)/cumulatedWindows}')       
+        max = np.max(np.array(maxs))     
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
@@ -175,69 +147,7 @@ class SHMDataset(Dataset):
         b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
         y = signal.lfilter(b, a, sliceN)
         return y
-    
+
     def power(self, slice):
         signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
         return signalPower
-
-    
-def plotSpect(frequencies, times, spectrogram, index, std, signalPower):
-    plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {signalPower}')
-    plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
-    plt.ylabel('Frequency [Hz]')
-    plt.xlabel('Time [sec]')
-    plt.colorbar(format="%+2.f", label='dB')
-    folder = "positives" if std > 0.0075 else "noise"
-    plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/PowerINSIST/{folder}/{index}.png')
-    plt.close()
-
-def task(gen, i):
-    frequencies, times, spectrogram, std = gen[i]
-    #means.append(np.mean(spectrogram))
-    #vars.append(np.var(spectrogram))
-    plotSpect(frequencies, times, spectrogram, i, std)
-
-
-if __name__ == "__main__":
-    timer = list()
-    gen = SHMDataset()
-    processes = []
-    manager = multiprocessing.Manager()
-    means = manager.list()
-    vars = manager.list()
-
-    print(f"Total instances: {len(gen)}")
-
-    indexes = [random.randrange(0, len(gen)) for i in range(5000)]
-    #indexes = range(0,len(gen))
-    #maxs = []
-    for i in tqdm(indexes):
-
-        frequencies, times, spectrogram, std, signalPower = gen[i]
-        plotSpect(frequencies, times, spectrogram, i, std, signalPower)
-
-    #startMeasure = time.time()
-    #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
-    #indexes = range(56700, 56900)
-    #batchSize = 100
-    #batches = math.floor(len(indexes)/batchSize)
-    #for batchNumber in tqdm(range(0, batches)):
-    #    start= batchSize*batchNumber
-    #    indexBatch = range(start,start+batchSize)
-    #    for i in indexBatch:
-    #        p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
-    #        p.start()
-    #        processes.append(p)
-
-    #    for p in processes:
-    #        p.join()
-    #endMeasure = time.time()
-
-    #print(f'Total time {endMeasure-startMeasure}')
-
-    #gnrMean = np.mean(np.array(means))
-    #gnrStd = np.sqrt(np.mean(np.array(vars)))
-    #print(f'General mean {gnrMean} general std {gnrStd}')
-
-

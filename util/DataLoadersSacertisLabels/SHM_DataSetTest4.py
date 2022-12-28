@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 #import librosa.display
 import numpy as np
 import pandas as pd
+from datetime import datetime
 import os
 import math
 import time
@@ -17,76 +18,79 @@ from scipy import signal
 from tqdm import tqdm
 import multiprocessing
 import torchvision
-from pathlib import Path
-
-import datetime
 
 class SHMDataset(Dataset):
 
     def __init__(self):
-        self.day_start = datetime.date(2019,5,24)
-        self.num_days = 1
-        self.path = "/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/"
+        self.start_time, self.end_time = "05/12/2021 23:00", "06/12/2021 00:00"
+        self.path = '/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
         self.data = self._readCSV()
+        self.labelsDf = self._readLabels()
+        self.data = self._labelMatch()
         self.sampleRate = 100
-        self.frameLength = 198
-        self.stepLength = 10
-        self.windowLength= 990
-        self.windowStep = 100
+        self.frameLength = 256
+        self.stepLength = 64
+        self.windowLength= 6000
+        self.windowStep = 1500
         self.data, self.limits, self.totalWindows, self.min, self.max = self._partitioner()
 
     def __len__(self):
         return self.totalWindows
 
     def __getitem__(self, index):
-        start, end, std, signalPower = self.limits[index]
+        start, end, std, label = self.limits[index]
         slice = self.data[start:end]
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return frequencies, times, spectrogram, std, signalPower
+        return frequencies, times, spectrogram, std, label
 
     def _readCSV(self):
         print(f'reading CSV files')
-        
-        ldf = []
-        for x in range(self.num_days):
-            yy, mm, dd = (self.day_start + datetime.timedelta(days=x)).strftime('%Y,%m,%d').split(",")
-            date = f"{int(yy)}{int(mm)}{int(dd)}"
-            df = pd.read_csv(self.path + f"ss335-acc-{date}.csv")
-            ldf.append(df.drop(['x','y', "year", "month", "day", "Unnamed: 0"], axis=1))
+        start = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
+        end = datetime.strptime(self.end_time, '%d/%m/%Y %H:%M')
+
+        ldf = list()
+        for p in tqdm(glob.glob(self.path + "*.csv")):
+            name = os.path.split(p)[-1]
+            nstr = datetime.strptime(name, 'traffic_%Y%m%dH%H%M%S.csv')
+            if start <= nstr < end:
+                df_tmp = pd.read_csv(p)
+                c_drop = set(df_tmp.columns) - set(["sens_pos", "z", "ts"])
+                if len(c_drop) > 0:
+                    df_tmp.drop(columns=list(c_drop), inplace=True)
+                ldf.append(df_tmp)
         df = pd.concat(ldf).sort_values(by=['sens_pos', 'ts'])
-        df = df.reset_index(drop=True)
+        df.reset_index(inplace=True, drop=True)
 
-        new_dict = {
-            "ts": [],
-            "sens_pos": [],
-            "z": [],
-        }
-        conv = (1*2.5)*2**-15
+        #df = df[df['sens_pos'].isin(self.sensors)]
+        df['ts'] = pd.to_datetime(df['ts'], unit='ms')
+        df['Time'] = df['ts'].dt.strftime('%Y-%m-%d %H:%M:00')
 
-        print(f'Creating the dataframe')
-        for i in tqdm(range(len(df))):
-            row = df["z"][i]
-            data_splited = row.replace("\n", "").replace("[", "").replace("]", "").split(" ")
-            #data_splited = df["z"][i].split(" ")
-            ts = datetime.datetime.utcfromtimestamp(df["ts"][i]/1000)
-            sens = df["sens_pos"][i]
-            
-            for idx, data in enumerate(data_splited):
-                if data == "":
-                    continue
-                z = int(data)  
-                new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
-                new_dict["z"].append(z * conv)
-                new_dict["sens_pos"].append(sens)
-            if i >400000:
-                break
+        return df
 
-        df_new = pd.DataFrame(new_dict)
-        print(f'Finish data reading')
-        return df_new
+    def _readLabels(self):
+        pesaDataDf = pd.read_csv("/home/yhbedoya/Repositories/SHM-MAE/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
+        pesaDataDf = pesaDataDf[["Id", "StartTimeStr"]]
+        pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
+        pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
+        pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["Time"]) + pd.to_timedelta(-1,'H') 
+        aggDf = pesaDataDf.groupby(["Time"])["Id"].count()
+        labelsDf = aggDf.reset_index()
+        labelsDf["Time"] = pd.to_datetime(labelsDf["Time"]).dt.strftime('%Y-%m-%d %H:%M:00')
+        labelsDf.rename(columns={"Id": "Vehicles"}, inplace=True)
+        
+        return labelsDf
+
+    def _labelMatch(self):
+        dataDf = self.data
+        labelsDf = self.labelsDf
+
+        dataLabelsDf = dataDf.set_index("Time").join(labelsDf.set_index("Time"), how="left").reset_index()
+        dataLabelsDf["Vehicles"].fillna(0, inplace=True)
+
+        return dataLabelsDf
 
     def _partitioner(self):
         sensors = self.data['sens_pos'].unique().tolist()
@@ -106,6 +110,7 @@ class SHMDataset(Dataset):
             partitions[sensor]= (start, end, indexStart)
 
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
+        vehiclesData = self.data["Vehicles"]
         cummulator = -1
         posCummulator = 0
         negCummulator = 0
@@ -114,23 +119,18 @@ class SHMDataset(Dataset):
         mins = list()
         maxs = list()
         print(f'Defining useful windows limits')
-        noiseFreeSpaces = 0
-        indexes = list(range(0, cumulatedWindows))
-        random.shuffle(indexes)
-
-        for index in tqdm(indexes):
-            if cummulator >= 30000:
-                break
+        noiseFreeSpaces = 1
+        for index in tqdm(range(0, cumulatedWindows)):
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     amp = np.max(filteredSlice)-np.min(filteredSlice)
-                    signalPower = self.power(filteredSlice)
                     if amp > 0.0075:
                         posCummulator +=1 
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp, signalPower)
+                        label = vehiclesData[start : start+self.windowLength].mean()
+                        limits[cummulator] = (start, start+self.windowLength, amp, label)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
@@ -140,7 +140,8 @@ class SHMDataset(Dataset):
                     elif noiseFreeSpaces>0:
                         negCummulator +=1
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp, signalPower)
+                        label = vehiclesData[start : start+self.windowLength].mean()
+                        limits[cummulator] = (start, start+self.windowLength, amp, label)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
@@ -175,21 +176,17 @@ class SHMDataset(Dataset):
         b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
         y = signal.lfilter(b, a, sliceN)
         return y
-    
-    def power(self, slice):
-        signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
-        return signalPower
 
     
-def plotSpect(frequencies, times, spectrogram, index, std, signalPower):
+def plotSpect(frequencies, times, spectrogram, index, std, label):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {signalPower}')
+    plt.title(f'spectrogram from PSD: {round(std, 4)} Vehicles: {label}')
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
     folder = "positives" if std > 0.0075 else "noise"
-    plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/PowerINSIST/{folder}/{index}.png')
+    plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/spectOneM/{folder}/{index}.png')
     plt.close()
 
 def task(gen, i):
@@ -207,17 +204,14 @@ if __name__ == "__main__":
     means = manager.list()
     vars = manager.list()
 
-    print(f"Total instances: {len(gen)}")
-
     indexes = [random.randrange(0, len(gen)) for i in range(5000)]
     #indexes = range(0,len(gen))
-    #maxs = []
     for i in tqdm(indexes):
+        frequencies, times, spectrogram, std, label = gen[i]
 
-        frequencies, times, spectrogram, std, signalPower = gen[i]
-        plotSpect(frequencies, times, spectrogram, i, std, signalPower)
 
-    #startMeasure = time.time()
+        plotSpect(frequencies, times, spectrogram, i, std, label)
+
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
     #indexes = range(56700, 56900)
     #batchSize = 100
@@ -232,12 +226,5 @@ if __name__ == "__main__":
 
     #    for p in processes:
     #        p.join()
-    #endMeasure = time.time()
-
-    #print(f'Total time {endMeasure-startMeasure}')
-
-    #gnrMean = np.mean(np.array(means))
-    #gnrStd = np.sqrt(np.mean(np.array(vars)))
-    #print(f'General mean {gnrMean} general std {gnrStd}')
 
 
