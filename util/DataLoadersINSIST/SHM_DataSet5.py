@@ -116,7 +116,7 @@ class SHMDataset(Dataset):
 
                     if signalPower>1.25*10**-6:
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, amp)
+                        limits[cummulator] = (start, start+self.windowLength, signalPower)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
