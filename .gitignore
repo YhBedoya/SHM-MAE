@@ -132,6 +132,9 @@ dmypy.json
 *.pt
 *.sbatch
 *.out
+*.npy
+*.txt
+events.out.*
 *.csv
 *.png
 *.pth
