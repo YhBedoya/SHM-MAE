@@ -4,8 +4,6 @@ import requests
 import torch
 import numpy as np
 
-import matplotlib.pyplot as plt
-from PIL import Image
 import numpy as np
 import torch
 import math
@@ -22,19 +20,6 @@ from pathlib import Path
 import models_audio_mae
 
 # define the utils
-
-def show_image(frequencies, times, spectrogram, title='', diffFlag=False):
-    #plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {title}')
-    #plt.pcolormesh(times, frequencies, 10*np.log10(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
-    if not diffFlag:
-      plt.pcolormesh(times, frequencies, 10*np.squeeze(spectrogram), vmin=-150, vmax=-50)
-    else:
-      plt.pcolormesh(times, frequencies, 10*np.squeeze(spectrogram))
-    plt.ylabel('Frequency [Hz]')
-    plt.xlabel('Time [sec]')
-    plt.colorbar(format="%+2.f", label='dB')
-    #return
 
 def prepare_model(chkpt_dir, arch='audioMae_vit_base'):
     # build model
@@ -100,27 +85,6 @@ def run_one_image(frequencies, times, spectrogram, model, test):
 
     if test:
       return mse
-
-    print(f"MSE: {mse}")
-
-    plt.title(f"MSE: {mse}")
-
-    # make the plt figure larger
-    plt.rcParams['figure.figsize'] = [30, 8]
-
-    plt.subplot(1, 4, 1)
-    show_image(frequencies, times, spectrogram, "original")
-
-    plt.subplot(1, 4, 2)
-    show_image(frequencies, times, im_masked, "masked")
-
-    plt.subplot(1, 4, 3)
-    show_image(frequencies, times, im_paste, "reconstruction + visible")
-
-    plt.subplot(1, 4, 4)
-    show_image(frequencies, times, diff, "Difference original vs prediction", diffFlag=True)
-
-    #plt.show()
 
 class SHMDataset(Dataset):
 
