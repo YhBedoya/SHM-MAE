@@ -232,7 +232,7 @@ if __name__ == "__main__":
     }
 
     data_path = "/home/yvelez/INSIST_SS335/"
-    num_days = 3
+    num_days = 1
     for k,v in instances.items():
         print(f"Starting {k} ")
         InsistDataset = SHMDataset(data_path=data_path, day_start=v, num_days=num_days)
