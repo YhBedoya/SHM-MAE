@@ -1,6 +1,3 @@
-import sys
-import requests
-
 import torch
 import numpy as np
 
@@ -14,8 +11,6 @@ from scipy import signal
 
 from torch.utils.data import Dataset
 import random
-
-from pathlib import Path
 
 import models_audio_mae
 
