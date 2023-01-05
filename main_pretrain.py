@@ -93,10 +93,10 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda',  #TODO:cuda
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=0, type=int)
-    parser.add_argument('--resume', default='',
+    parser.add_argument('--resume', default='/home/yvelez/SHM-MAE/output_dir_INSIST/checkpoint-140.pth',
                         help='resume from checkpoint')
 
-    parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
+    parser.add_argument('--start_epoch', default=140, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=10, type=int) #TODO: 10
     parser.add_argument('--pin_mem', action='store_true',
