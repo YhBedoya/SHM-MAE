@@ -135,6 +135,7 @@ dmypy.json
 *.npy
 *.txt
 events.out.*
+*.pdf
 *.csv
 *.png
 *.pth

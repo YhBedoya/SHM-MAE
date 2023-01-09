@@ -112,48 +112,33 @@ class SHMDataset(Dataset):
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
         vehiclesData = self.data["Vehicles"]
         cummulator = -1
-        posCummulator = 0
-        negCummulator = 0
-
 
         mins = list()
         maxs = list()
         print(f'Defining useful windows limits')
-        noiseFreeSpaces = 1
-        for index in tqdm(range(0, cumulatedWindows)):
+        indexes = list(range(0, cumulatedWindows))
+        random.shuffle(indexes)
+
+        for index in tqdm(indexes):
+            if cummulator >= 500000:
+                break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
-                    amp = np.max(filteredSlice)-np.min(filteredSlice)
-                    if amp > 0.0075:
-                        posCummulator +=1 
+                    signalPower = self.power(filteredSlice)
+
+                    if signalPower>1.25*10**-6:
                         cummulator += 1
-                        label = vehiclesData[start : start+self.windowLength].mean()
-                        limits[cummulator] = (start, start+self.windowLength, amp, label)
+                        limits[cummulator] = (start, start+self.windowLength, signalPower)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
                         maxs.append(np.max(np.array(spectrogram)))
-                        noiseFreeSpaces += 1
-                        
-                    elif noiseFreeSpaces>0:
-                        negCummulator +=1
-                        cummulator += 1
-                        label = vehiclesData[start : start+self.windowLength].mean()
-                        limits[cummulator] = (start, start+self.windowLength, amp, label)
-                        slice = timeData[start:start+self.windowLength]
-                        frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
-                        mins.append(np.min(np.array(spectrogram)))
-                        maxs.append(np.max(np.array(spectrogram)))
-                        noiseFreeSpaces -= 1
                     break
         print(f'Total windows in dataset: {cummulator}')
         min = np.min(np.array(mins))
-        max = np.max(np.array(maxs))
-        print(f'Total positive instances: {posCummulator}')
-        print(f'Total noisy instances: {negCummulator}')
-        print(f'Proportion of useful instances {(posCummulator+negCummulator)/cumulatedWindows}')       
+        max = np.max(np.array(maxs))   
         print(f'General min: {min}')
         print(f'General max: {max}')
         return timeData, limits, cummulator, min, max
@@ -176,6 +161,10 @@ class SHMDataset(Dataset):
         b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
         y = signal.lfilter(b, a, sliceN)
         return y
+
+    def power(self, slice):
+        signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
+        return signalPower
 
     
 def plotSpect(frequencies, times, spectrogram, index, std, label):

@@ -8,6 +8,7 @@ import pandas as pd
 import datetime
 from tqdm import tqdm
 from scipy import signal
+import argparse
 
 from torch.utils.data import Dataset
 import random
@@ -99,13 +100,13 @@ class SHMDataset(Dataset):
         return self.totalWindows
 
     def __getitem__(self, index):
-        start, end, power = self.limits[index]
+        start, end, power, maxDate = self.limits[index]
         slice = self.data[start:end]
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return frequencies, times, spectrogram
+        return frequencies, times, spectrogram, maxDate
 
     def _readCSV(self):
         print(f'reading CSV files')
@@ -164,27 +165,28 @@ class SHMDataset(Dataset):
             partitions[sensor]= (start, end, indexStart)
 
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
+        timestamps = self.data["ts"]
         cummulator = -1
 
         mins = list()
         maxs = list()
         print(f'Defining useful windows limits')
-        noiseFreeSpaces = 1
         indexes = list(range(0, cumulatedWindows))
         random.shuffle(indexes)
         
         for index in tqdm(indexes):
-            if cummulator >= 100000:
+            if cummulator >= 10:
                 break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
+                    timeSlice = timestamps[start: start+self.windowLength]
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     signalPower = self.power(filteredSlice)
 
                     if signalPower>1.25*10**-6:
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, signalPower)
+                        limits[cummulator] = (start, start+self.windowLength, signalPower, timeSlice.max())
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
@@ -220,30 +222,72 @@ class SHMDataset(Dataset):
         signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
         return signalPower
 
-if __name__ == "__main__":
+def get_args_parser():
+    parser = argparse.ArgumentParser('Reconstruction evaluator', add_help=False)
+    parser.add_argument('--instance', default="validation", type=str,
+                        help='Instance to execute')
 
-    chkpt_dir = '/home/yvelez/SHM-MAE/output_dir_INSIST_small/checkpoint-199.pth'
+    return parser
+
+
+if __name__ == "__main__":
+    args = get_args_parser()
+    args = args.parse_args()
+
+    #Load the model
+    chkpt_dir = '/home/yhbedoya/Repositories/SHM-MAE/AnomalyDetection on INSIST/INSIST_small/checkpoints/checkpoint-199.pth'
     model_mae = prepare_model(chkpt_dir, 'audioMae_vit_base')
     print('Model loaded.')
 
-    instances = {
-        "preIntervention": datetime.date(2019,5,25),
-        "postIntervention": datetime.date(2019,5,1)   
-    }
+    instance = args.instance
+    if  instance == "validation":
+        #Instances to evaluate
+        instances = {
+            "validation2805": datetime.date(2019,5,28),
+            "validation2905": datetime.date(2019,5,29),
+            "validation3005": datetime.date(2019,5,30)
+        }
+    elif instance == "testPost":
+        #Instances to evaluate
+        instances = {
+            "testPost0106": datetime.date(2019,6,1),
+            "testPost0206": datetime.date(2019,6,2),
+            "testPost0306": datetime.date(2019,6,3),
+            "testPost0406": datetime.date(2019,6,4),
+        }
 
-    data_path = "/home/yvelez/INSIST_SS335/"
+    elif instance == "testPre":
+        #Instances to evaluate
+        instances = {
+            "testPre0105": datetime.date(2019,5,1),
+            "testPre0205": datetime.date(2019,5,2),
+            "testPre0305": datetime.date(2019,5,3),
+            "testPre0405": datetime.date(2019,5,4),
+        }
+
+    #evaluation
+    data_path = "/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/"
     num_days = 1
     for k,v in instances.items():
-        print(f"Starting {k} ")
+        print(f"---------------------------------------------Starting {k} ------------------------------------------")
+        #creating dataset
         InsistDataset = SHMDataset(data_path=data_path, day_start=v, num_days=num_days)
 
+        dates = []
         errors = []
-
+        #Iterating through dataset
         for i in tqdm(range(len(InsistDataset))):
-            frequencies, times, spectrogram = InsistDataset[i]
+            frequencies, times, spectrogram, maxDate = InsistDataset[i]
             error = run_one_image(frequencies, times, spectrogram, model_mae, True)
+            dates.append(maxDate)
             errors.append(error)
 
-        errors = np.array(errors)
-        with open(f'{k}.npy', 'wb') as f:
-            np.save(f, errors)
+        result = {
+            "dates": dates,
+            "errors": np.array(errors)
+        }
+
+        resultsDf = pd.DataFrame(result)
+        #saving results in npy files to read later
+        resultsDf.to_csv(f'/home/yhbedoya/Repositories/SHM-MAE/AnomalyDetection on INSIST/INSIST_small/{k}.csv')
+        break
