@@ -175,8 +175,6 @@ class SHMDataset(Dataset):
         random.shuffle(indexes)
         
         for index in tqdm(indexes):
-            if cummulator >= 10:
-                break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
