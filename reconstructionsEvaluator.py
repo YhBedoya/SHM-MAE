@@ -235,7 +235,7 @@ if __name__ == "__main__":
     args = args.parse_args()
 
     #Load the model
-    chkpt_dir = '/home/yhbedoya/Repositories/SHM-MAE/AnomalyDetection on INSIST/INSIST_small/checkpoints/checkpoint-199.pth'
+    chkpt_dir = '/home/yvelez/SHM-MAE/output_dir_INSIST_small/checkpoint-199.pth'
     model_mae = prepare_model(chkpt_dir, 'audioMae_vit_base')
     print('Model loaded.')
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         }
 
     #evaluation
-    data_path = "/home/yhbedoya/Repositories/SHM-MAE/INSIST_SS335/"
+    data_path = "/home/yvelez/INSIST_SS335/"
     num_days = 1
     for k,v in instances.items():
         print(f"---------------------------------------------Starting {k} ------------------------------------------")
@@ -289,5 +289,4 @@ if __name__ == "__main__":
 
         resultsDf = pd.DataFrame(result)
         #saving results in npy files to read later
-        resultsDf.to_csv(f'/home/yhbedoya/Repositories/SHM-MAE/AnomalyDetection on INSIST/INSIST_small/{k}.csv')
-        break
+        resultsDf.to_csv(f'/home/yvelez/SHM-MAE/INSISTevaluator_small/{k}.csv')
