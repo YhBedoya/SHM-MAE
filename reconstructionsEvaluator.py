@@ -241,9 +241,9 @@ if __name__ == "__main__":
     if  instance == "validation":
         #Instances to evaluate
         instances = {
-            "validation2805": datetime.date(2019,5,29),
-            "validation2905": datetime.date(2019,5,30),
-            "validation3005": datetime.date(2019,5,31)
+            "validation0506": datetime.date(2019,6,5),
+            "validation0606": datetime.date(2019,6,6),
+            "validation0706": datetime.date(2019,6,7)
         }
     elif instance == "testPost":
         #Instances to evaluate
