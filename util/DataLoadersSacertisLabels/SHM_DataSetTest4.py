@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 #import librosa.display
 import numpy as np
 import pandas as pd
+pd.options.mode.chained_assignment = None
 from datetime import datetime
 import os
 import math
@@ -22,11 +23,15 @@ import torchvision
 class SHMDataset(Dataset):
 
     def __init__(self):
-        self.start_time, self.end_time = "05/12/2021 23:00", "06/12/2021 00:00"
+        self.start_time, self.end_time = "05/12/2021 23:45", "06/12/2021 00:00"
         self.path = '/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
+        self.minDuration = 0.25
         self.data = self._readCSV()
-        self.labelsDf = self._readLabels()
-        self.data = self._labelMatch()
+        self.distanceToSensor = self._readDistanceToSensor()
+        self.sensorVarDict = self._calculateThresholds()
+        self.pesaDataDf = self._readLabels()
+        self.labelsDf, self.groupsDf = self._labelAssignment()
+        #self.groupsDf = self.gropsGenerator()
         self.sampleRate = 100
         self.frameLength = 256
         self.stepLength = 64
@@ -38,13 +43,13 @@ class SHMDataset(Dataset):
         return self.totalWindows
 
     def __getitem__(self, index):
-        start, end, std, label = self.limits[index]
+        start, end, label, timeSlice, sensor = self.limits[index]
         slice = self.data[start:end]
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return frequencies, times, spectrogram, std, label
+        return frequencies, times, spectrogram, label, timeSlice, sensor
 
     def _readCSV(self):
         print(f'reading CSV files')
@@ -67,30 +72,150 @@ class SHMDataset(Dataset):
         #df = df[df['sens_pos'].isin(self.sensors)]
         df['ts'] = pd.to_datetime(df['ts'], unit='ms')
         df['Time'] = df['ts'].dt.strftime('%Y-%m-%d %H:%M:00')
-
+        df["zN"] = df["z"]-np.mean(df["z"])
+        df["vars"] = df["zN"].rolling(window=100).var().fillna(0)
+        df["vars"] = df["vars"].rolling(window=100).mean().fillna(0)
+        print(f'finish reading process')
         return df
+
+    def _readDistanceToSensor(self):
+        distanceToSensor = {}
+        with open('/home/yhbedoya/Repositories/SHM-MAE/LabelGeneration/distanceToSensor.csv') as f:
+            for line in f.readlines():
+                sensor, distance = line.replace("'", "").replace("\n","").split(",")
+                distanceToSensor[sensor] = float(distance)
+        return distanceToSensor
 
     def _readLabels(self):
         pesaDataDf = pd.read_csv("/home/yhbedoya/Repositories/SHM-MAE/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
-        pesaDataDf = pesaDataDf[["Id", "StartTimeStr"]]
+        pesaDataDf = pesaDataDf[["Id", "StartTimeStr", "ClassId", "GrossWeight", "Velocity", "VelocityUnit"]]
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
         pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
-        pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["Time"]) + pd.to_timedelta(-1,'H') 
-        aggDf = pesaDataDf.groupby(["Time"])["Id"].count()
-        labelsDf = aggDf.reset_index()
-        labelsDf["Time"] = pd.to_datetime(labelsDf["Time"]).dt.strftime('%Y-%m-%d %H:%M:00')
-        labelsDf.rename(columns={"Id": "Vehicles"}, inplace=True)
+        pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["Time"]) + pd.to_timedelta(-1,'H')
+        pesaDataDf.sort_values(by="Id", inplace=True)
+        pesaDataDf = pesaDataDf[(pesaDataDf["Time"]>="2021-12-05 23:45:00") & (pesaDataDf["Time"]<="2021-12-05 23:59:00")]
+        pesaDataDf.reset_index(drop=True, inplace=True)
         
-        return labelsDf
+        return pesaDataDf
 
-    def _labelMatch(self):
-        dataDf = self.data
-        labelsDf = self.labelsDf
+    def groupsGenerator(self, sensorData, minTime, maxTime, threshold):
+        slice = sensorData[(sensorData["ts"]>= minTime) & (sensorData["ts"]<= maxTime)]
+        
+        slice["outlier"] = slice["vars"].apply(lambda x: x>=threshold)
+        outliers = slice[slice["outlier"] == True].reset_index().to_dict("records")
 
-        dataLabelsDf = dataDf.set_index("Time").join(labelsDf.set_index("Time"), how="left").reset_index()
-        dataLabelsDf["Vehicles"].fillna(0, inplace=True)
+        if len(outliers) == 0:
+            return None
 
-        return dataLabelsDf
+        last = minTime
+        timeStart = outliers[0]["ts"]
+        flag = True
+        groups = []
+        groupTimes = []
+        groupIndexes = []
+        groupVars = []
+        label = np.nan
+        groupId = 0
+        for outlier in outliers:
+            if ((outlier["ts"] - last).total_seconds() < 2) or flag:
+                groupTimes.append(outlier["ts"])
+                groupVars.append(outlier["vars"])
+                flag = False
+                timeEnd = outlier["ts"]
+            else:
+                start, end = min(groupTimes), max(groupTimes)
+                groupSignal = sensorData[(sensorData["ts"]>= start) & (sensorData["ts"]<= end)]["zN"]
+                signalPower = np.sqrt(np.mean(np.array(groupSignal)**2))**2 
+                pointMaxVar = groupTimes[np.argmax(groupVars)]
+                if ((end - start).total_seconds() > self.minDuration):
+                    label = {"groupId": groupId,"start": start, "end": end, "signalPower": signalPower, 
+                    "pointMaxVar": pointMaxVar}
+                    groups.append(label)
+                groupId += 1
+                groupTimes = [outlier["ts"],]
+                groupVars = [outlier["vars"],]
+            last = outlier["ts"]
+
+        start, end = min(groupTimes), max(groupTimes)
+        groupSignal = sensorData[(sensorData["ts"]>= start) & (sensorData["ts"]<= end)]["zN"]
+        signalPower = np.sqrt(np.mean(np.array(groupSignal)**2))**2 
+        pointMaxVar = groupTimes[np.argmax(groupVars)]
+        if ((end-start).total_seconds() > self.minDuration):
+                label = {"groupId": groupId,"start": start, "end": end, "signalPower": signalPower, 
+                "pointMaxVar": pointMaxVar}
+                groups.append(label)
+
+        if len(groups)>0:
+            groupsDf = pd.DataFrame(groups).sort_values("signalPower", ascending=False)
+        else:
+            groupsDf = pd.DataFrame()
+
+        return groupsDf
+
+    def _labelAssignment(self,):
+        sensorLabelsDfList = []
+        groupsDfList = []
+
+        sensorsList = self.data["sens_pos"].unique()
+        for sensor in sensorsList:
+            if (sensor in ["C17.1.2", "C12.1.4"]):
+                continue
+            assignedLabels = {}
+            assignedLabels2 = {}
+            sensorLabelsDf = self.pesaDataDf.copy(deep=True)
+            sensorLabelsDf["EstimatedTime"] = sensorLabelsDf["Time"] + pd.to_timedelta((float(self.distanceToSensor[sensor])/(sensorLabelsDf["Velocity"]/3.6))-20,'S')
+            sensorLabelsDf["MaxTime"] = sensorLabelsDf["EstimatedTime"] + pd.to_timedelta(120,'S')
+            minTime = sensorLabelsDf["EstimatedTime"].min()
+            maxTime = sensorLabelsDf["MaxTime"].max()
+            sensorLabelsDf.sort_values("GrossWeight", inplace=True, ascending=False)
+
+            sensorData = self.data[self.data["sens_pos"]==sensor]
+            threshold = self.sensorVarDict[sensor]["threshold"]
+            groupsDf = self.groupsGenerator(sensorData, minTime, maxTime, threshold)
+            availableGroupsDf = groupsDf.copy(deep=True)
+            print(f"Total groups found for sensor {sensor}: {groupsDf.shape[0]}")
+            if availableGroupsDf.empty:
+                continue
+            for index, row in sensorLabelsDf.iterrows():
+                if row["Id"] in assignedLabels:
+                    continue
+                
+                if availableGroupsDf.empty:
+                    break
+
+                candidatesDf = availableGroupsDf[(row["EstimatedTime"] <= availableGroupsDf["pointMaxVar"]) & (availableGroupsDf["pointMaxVar"] <= row["MaxTime"])]
+                if not candidatesDf.empty:
+                    assignedLabels[row["Id"]] = candidatesDf.iloc[0].to_dict()
+                    assignedLabels2[candidatesDf.iloc[0]["groupId"]] = row["Id"]
+                    availableGroupsDf.drop(candidatesDf.index[0], inplace=True)
+            
+            sensorLabelsDf["sens_pos"] = sensor
+            sensorLabelsDf["labels"] = sensorLabelsDf.apply(lambda row: assignedLabels[row["Id"]] if row["Id"] in assignedLabels else np.nan, axis=1)
+            sensorLabelsDf.sort_values("Id", inplace=True)
+            groupsDf["sens_pos"] = sensor
+            groupsDf["labels"] = groupsDf.apply(lambda row: assignedLabels2[row["groupId"]] if row["groupId"] in assignedLabels2 else np.nan, axis=1)
+            groupsDf.sort_values("groupId", inplace=True)
+            groupsDf.dropna(inplace=True)
+
+            sensorLabelsDfList.append(sensorLabelsDf)
+            groupsDfList.append(groupsDf)
+
+        labelsDf = pd.concat(sensorLabelsDfList)
+        groupsDf =  pd.concat(groupsDfList)
+
+        print(f"Total labels: {len(labelsDf)}")
+        totnan = labelsDf["labels"].isna().sum()
+        print(f"Total nan labels: {totnan}")
+        print(f"Proportion of match labels: {1-(totnan/len(labelsDf))}")
+
+        return labelsDf, groupsDf
+
+    def _labelAssigner(self, timeSlice, sensor):
+        start, end = timeSlice.min(), timeSlice.max()
+        vehiclesInSliceDf = self.groupsDf[(self.groupsDf["pointMaxVar"]>=start) &
+        (self.groupsDf["pointMaxVar"]<=end) &
+        (self.groupsDf["sens_pos"]==sensor)]
+        return vehiclesInSliceDf
 
     def _partitioner(self):
         sensors = self.data['sens_pos'].unique().tolist()
@@ -110,7 +235,7 @@ class SHMDataset(Dataset):
             partitions[sensor]= (start, end, indexStart)
 
         timeData = torch.tensor(self.data["z"].values, dtype=torch.float64)
-        vehiclesData = self.data["Vehicles"]
+        timestamps = self.data["ts"]
         cummulator = -1
 
         mins = list()
@@ -125,12 +250,14 @@ class SHMDataset(Dataset):
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
+                    timeSlice = timestamps[start: start+self.windowLength]
+                    label = self._labelAssigner(timeSlice, sensor)
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     signalPower = self.power(filteredSlice)
 
-                    if signalPower>1.25*10**-6:
+                    if (signalPower>1.25*10**-6) or (len(label)>0):
                         cummulator += 1
-                        limits[cummulator] = (start, start+self.windowLength, signalPower)
+                        limits[cummulator] = (start, start+self.windowLength, label, timeSlice, sensor)
                         slice = timeData[start:start+self.windowLength]
                         frequencies, times, spectrogram = self._transformation(torch.tensor(slice, dtype=torch.float64))
                         mins.append(np.min(np.array(spectrogram)))
@@ -166,6 +293,38 @@ class SHMDataset(Dataset):
         signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
         return signalPower
 
+    def interquartileRule(self, data):
+        # Calculate the first quartile (Q1)
+        Q1 = np.percentile(data, 25)
+
+        # Calculate the third quartile (Q3)
+        Q3 = np.percentile(data, 75)
+
+        # Calculate the interquartile range (IQR)
+        IQR = Q3 - Q1
+
+        # Define the upper and lower bounds
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+
+        return lower_bound, upper_bound
+
+    def _calculateThresholds(self,):
+        print(f'Start creating thresholds')
+        varDf = self.data[["sens_pos", "vars"]]
+        sensorsList = self.data["sens_pos"].unique()
+        sensorVarDict = {}
+        for sensor in tqdm(sensorsList):
+            sensorVarDf = varDf[varDf["sens_pos"]==sensor]
+            lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
+            sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
+            mean = sensorVarDf["vars"].mean()
+            std = sensorVarDf["vars"].std()
+            threshold = mean + 3.5 * std
+            sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
+        print(f'Finish thresholds creation')
+        return sensorVarDict
+
     
 def plotSpect(frequencies, times, spectrogram, index, std, label):
     plt.figure(figsize=(10, 5))
@@ -189,17 +348,16 @@ if __name__ == "__main__":
     timer = list()
     gen = SHMDataset()
     processes = []
-    manager = multiprocessing.Manager()
-    means = manager.list()
-    vars = manager.list()
+    #manager = multiprocessing.Manager()
+    #means = manager.list()
+    #vars = manager.list()
 
     indexes = [random.randrange(0, len(gen)) for i in range(5000)]
     #indexes = range(0,len(gen))
     for i in tqdm(indexes):
-        frequencies, times, spectrogram, std, label = gen[i]
+        frequencies, times, spectrogram, label, timeSlice, sensor = gen[i]
 
-
-        plotSpect(frequencies, times, spectrogram, i, std, label)
+        #plotSpect(frequencies, times, spectrogram, i, std, label)
 
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
     #indexes = range(56700, 56900)
