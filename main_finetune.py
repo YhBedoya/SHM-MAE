@@ -131,7 +131,7 @@ def get_args_parser():
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', action='store_true', default=False,
                         help='Enabling distributed evaluation (recommended during training for faster monitor')
-    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--num_workers', default=2, type=int)
     parser.add_argument('--pin_mem', action='store_true',
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
@@ -218,11 +218,7 @@ def main(args):
     #        prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
     #        label_smoothing=args.smoothing, num_classes=args.nb_classes)
 
-    model = models_audio_mae_R.__dict__[args.model](
-        num_classes=args.nb_classes,
-        drop_path_rate=args.drop_path,
-        global_pool=args.global_pool,
-    )
+    model = models_audio_mae_R.__dict__[args.model](norm_pix_loss=args.norm_pix_loss)
 
     if args.finetune and not args.eval:
         checkpoint = torch.load(args.finetune, map_location='cpu')
