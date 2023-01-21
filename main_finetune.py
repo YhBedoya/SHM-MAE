@@ -100,7 +100,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='',
+    parser.add_argument('--finetune', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_AD/pretrainModels/checkpoint-49.pth',
                         help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
@@ -108,16 +108,16 @@ def get_args_parser():
                         help='Use class token instead of global pool for classification')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--data_path', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/', type=str,
                         help='dataset path')
-    parser.add_argument('--data_path_val', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--data_path_val', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/', type=str,
                         help='dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
 
-    parser.add_argument('--output_dir', default='./output_dir',
+    parser.add_argument('--output_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_AD',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='./output_dir',
+    parser.add_argument('--log_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_AD',
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
@@ -164,7 +164,7 @@ def main(args):
     cudnn.benchmark = True
 
     dataset_train = SHMDataset(data_path=args.data_path, isPreTrain=False, isFineTuning=True)
-    dataset_val = SHMDataset(data_path=args.data_path, isPreTrain=False, isFineTuning=False)
+    dataset_val = SHMDataset(data_path=args.data_path_val, isPreTrain=False, isFineTuning=False)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
