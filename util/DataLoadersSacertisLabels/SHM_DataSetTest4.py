@@ -12,6 +12,7 @@ import math
 import time
 import matplotlib.pyplot as plt
 import random
+import json
 
 import librosa
 import librosa.display
@@ -22,20 +23,28 @@ import torchvision
 
 class SHMDataset(Dataset):
 
-    def __init__(self):
-        self.start_time, self.end_time = "05/12/2021 23:45", "06/12/2021 00:00"
+    def __init__(self, isPreTrain, isFineTuning):
+        if isPreTrain:
+            self.start_time, self.end_time = "05/12/2021 23:45", "05/12/2021 23:59"
+            self.datasetSize = 500000
+        elif isFineTuning:
+            self.start_time, self.end_time = "05/12/2021 23:45", "05/12/2021 23:59"
+            self.datasetSize = 200000
+        else:
+            self.start_time, self.end_time = "06/12/2021 12:00", "06/12/2021 23:59"
+            self.datasetSize = 50000
         self.path = '/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
+        self.noisySensors = ["C12.1.4", "C17.1.2"]
         self.minDuration = 0.25
         self.data = self._readCSV()
         self.distanceToSensor = self._readDistanceToSensor()
-        self.sensorVarDict = self._calculateThresholds()
+        self.sensorVarDict = self._calculateThresholds(isPreTrain)
         self.pesaDataDf = self._readLabels()
         self.labelsDf, self.groupsDf = self._labelAssignment()
-        #self.groupsDf = self.gropsGenerator()
         self.sampleRate = 100
-        self.frameLength = 256
-        self.stepLength = 64
-        self.windowLength= 6000
+        self.frameLength = 198
+        self.stepLength = 58
+        self.windowLength= 5990
         self.windowStep = 1500
         self.data, self.limits, self.totalWindows, self.min, self.max = self._partitioner()
 
@@ -87,13 +96,15 @@ class SHMDataset(Dataset):
         return distanceToSensor
 
     def _readLabels(self):
+        start_time = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
+        end_time = datetime.strptime(self.end_time, '%d/%m/%Y %H:%M')
         pesaDataDf = pd.read_csv("/home/yhbedoya/Repositories/SHM-MAE/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
         pesaDataDf = pesaDataDf[["Id", "StartTimeStr", "ClassId", "GrossWeight", "Velocity", "VelocityUnit"]]
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
         pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["Time"]) + pd.to_timedelta(-1,'H')
         pesaDataDf.sort_values(by="Id", inplace=True)
-        pesaDataDf = pesaDataDf[(pesaDataDf["Time"]>="2021-12-05 23:45:00") & (pesaDataDf["Time"]<="2021-12-05 23:59:00")]
+        pesaDataDf = pesaDataDf[(pesaDataDf["Time"]>=start_time) & (pesaDataDf["Time"]<=end_time)]
         pesaDataDf.reset_index(drop=True, inplace=True)
         
         return pesaDataDf
@@ -158,7 +169,7 @@ class SHMDataset(Dataset):
 
         sensorsList = self.data["sens_pos"].unique()
         for sensor in sensorsList:
-            if (sensor in ["C17.1.2", "C12.1.4"]):
+            if (sensor in self.noisySensors):
                 continue
             assignedLabels = {}
             assignedLabels2 = {}
@@ -215,7 +226,7 @@ class SHMDataset(Dataset):
         vehiclesInSliceDf = self.groupsDf[(self.groupsDf["pointMaxVar"]>=start) &
         (self.groupsDf["pointMaxVar"]<=end) &
         (self.groupsDf["sens_pos"]==sensor)]
-        return vehiclesInSliceDf
+        return vehiclesInSliceDf.shape[0]
 
     def _partitioner(self):
         sensors = self.data['sens_pos'].unique().tolist()
@@ -225,6 +236,8 @@ class SHMDataset(Dataset):
         limits = dict()
         print(f'Generating windows')
         for sensor in tqdm(sensors):
+            if (sensor in self.noisySensors):
+                continue
             sensorData = self.data[self.data['sens_pos']==sensor]
             totalFrames = sensorData.shape[0]
             totalWindows = math.ceil((totalFrames-self.windowLength)/self.windowStep)
@@ -245,7 +258,7 @@ class SHMDataset(Dataset):
         random.shuffle(indexes)
 
         for index in tqdm(indexes):
-            if cummulator >= 500000:
+            if cummulator >= self.datasetSize:
                 break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
@@ -255,7 +268,7 @@ class SHMDataset(Dataset):
                     filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
                     signalPower = self.power(filteredSlice)
 
-                    if (signalPower>1.25*10**-6) or (len(label)>0):
+                    if (signalPower>1.25*10**-6) or (label>0):
                         cummulator += 1
                         limits[cummulator] = (start, start+self.windowLength, label, timeSlice, sensor)
                         slice = timeData[start:start+self.windowLength]
@@ -290,8 +303,7 @@ class SHMDataset(Dataset):
         return y
 
     def power(self, slice):
-        signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
-        return signalPower
+        return np.sqrt(np.mean(np.array(slice)**2))**2
 
     def interquartileRule(self, data):
         # Calculate the first quartile (Q1)
@@ -309,33 +321,42 @@ class SHMDataset(Dataset):
 
         return lower_bound, upper_bound
 
-    def _calculateThresholds(self,):
-        print(f'Start creating thresholds')
-        varDf = self.data[["sens_pos", "vars"]]
-        sensorsList = self.data["sens_pos"].unique()
-        sensorVarDict = {}
-        for sensor in tqdm(sensorsList):
-            sensorVarDf = varDf[varDf["sens_pos"]==sensor]
-            lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
-            sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
-            mean = sensorVarDf["vars"].mean()
-            std = sensorVarDf["vars"].std()
-            threshold = mean + 3.5 * std
-            sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
-        print(f'Finish thresholds creation')
+    def _calculateThresholds(self, isPreTrain):
+        if isPreTrain:
+            print(f'Start creating thresholds')
+            varDf = self.data[["sens_pos", "vars"]]
+            sensorsList = self.data["sens_pos"].unique()
+            sensorVarDict = {}
+            for sensor in tqdm(sensorsList):
+                sensorVarDf = varDf[varDf["sens_pos"]==sensor]
+                lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
+                sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
+                mean = sensorVarDf["vars"].mean()
+                std = sensorVarDf["vars"].std()
+                threshold = mean + 3.5 * std
+                sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
+                with open("sensorVarDict.json", "w") as f:
+                    # Write the dict to the file
+                    json.dump(sensorVarDict, f)
+            print(f'Finish thresholds creation')
+        else:
+            print(f'Start reading thresholds')
+            with open("sensorVarDict.json", "r") as f:
+                # Load the dict from the file
+                sensorVarDict = json.load(f)
+
+            print(f'Finish thresholds reading')
+
         return sensorVarDict
 
     
-def plotSpect(frequencies, times, spectrogram, index, std, label):
+def plotSpect(frequencies, times, spectrogram, index, label):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {round(std, 4)} Vehicles: {label}')
+    plt.title(f'spectrogram from PSD Vehicles: {label}')
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
-    folder = "positives" if std > 0.0075 else "noise"
-    plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/spectOneM/{folder}/{index}.png')
-    plt.close()
 
 def task(gen, i):
     frequencies, times, spectrogram, std = gen[i]
@@ -346,18 +367,17 @@ def task(gen, i):
 
 if __name__ == "__main__":
     timer = list()
-    gen = SHMDataset()
+    gen = SHMDataset(isPreTrain=False, isFineTuning=True)
     processes = []
     #manager = multiprocessing.Manager()
     #means = manager.list()
     #vars = manager.list()
 
-    indexes = [random.randrange(0, len(gen)) for i in range(5000)]
+    indexes = [random.randrange(0, len(gen)) for i in range(100)]
     #indexes = range(0,len(gen))
     for i in tqdm(indexes):
         frequencies, times, spectrogram, label, timeSlice, sensor = gen[i]
-
-        #plotSpect(frequencies, times, spectrogram, i, std, label)
+        plotSpect(frequencies, times, spectrogram, i, label)
 
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
     #indexes = range(56700, 56900)

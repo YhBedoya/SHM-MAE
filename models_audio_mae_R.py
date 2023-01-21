@@ -48,22 +48,22 @@ class AudioMaskedAutoencoderViT(nn.Module):
         # --------------------------------------------------------------------------
 
         # --------------------------------------------------------------------------
-        # MAE decoder specifics
-        self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
+        # Regression task
+        self.linear = nn.Linear(embed_dim, 1, bias=True)
 
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
+        #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_embed_dim),
-                                              requires_grad=False)  # fixed sin-cos embedding
+        #self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_embed_dim),
+        #                                      requires_grad=False)  # fixed sin-cos embedding
 
-        self.decoder_blocks = nn.ModuleList([
-            SwinBlock(decoder_embed_dim, decoder_num_heads, decoder_embed_dim // num_heads,
-                      int(mlp_ratio * decoder_embed_dim),
-                      shifted=True, window_size=4, relative_pos_embedding=True)
-            for i in range(decoder_depth)])
+        #self.decoder_blocks = nn.ModuleList([
+        #    SwinBlock(decoder_embed_dim, decoder_num_heads, decoder_embed_dim // num_heads,
+        #              int(mlp_ratio * decoder_embed_dim),
+        #              shifted=True, window_size=4, relative_pos_embedding=True)
+        #    for i in range(decoder_depth)])
 
-        self.decoder_norm = norm_layer(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size ** 2 * in_chans, bias=True)  # decoder to patch
+        #self.decoder_norm = norm_layer(decoder_embed_dim)
+        #self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size ** 2 * in_chans, bias=True)  # decoder to patch
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
@@ -76,9 +76,9 @@ class AudioMaskedAutoencoderViT(nn.Module):
         pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], (self.grid_h, self.grid_w), cls_token=True)
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
-        decoder_pos_embed = get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], (self.grid_h, self.grid_w),
-                                                    cls_token=False)
-        self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
+        #decoder_pos_embed = get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], (self.grid_h, self.grid_w),
+        #                                            cls_token=False)
+        #self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
         w = self.patch_embed.proj.weight.data
@@ -179,33 +179,33 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         return x, mask, ids_restore
 
-    def forward_decoder(self, x, ids_restore):
+    def forward_regression(self, x, ids_restore):
 
         # embed tokens
-        x = self.decoder_embed(x[:, 1:, :])
+        x = self.linear(x[:, 1:, :])
 
         # append mask tokens to sequence
 
-        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] - x.shape[1], 1)
-        x_ = torch.cat([x, mask_tokens], dim=1)  # no cls token
-        x = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
+        #mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] - x.shape[1], 1)
+        #x_ = torch.cat([x, mask_tokens], dim=1)  # no cls token
+        #x = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
 
-        b, l, c = x.shape
+        #b, l, c = x.shape
 
-        assert l == self.grid_h * self.grid_w, "input feature has wrong size"
+        #assert l == self.grid_h * self.grid_w, "input feature has wrong size"
 
         # add pos embed
-        x = x + self.decoder_pos_embed
-        x = x.view(b, self.grid_h, self.grid_w, c)
+        #x = x + self.decoder_pos_embed
+        #x = x.view(b, self.grid_h, self.grid_w, c)
         # apply Transformer blocks
-        for blk in self.decoder_blocks:
-            x = blk(x)
+        #for blk in self.decoder_blocks:
+        #    x = blk(x)
 
-        x = rearrange(x, 'b h w c -> b (h w) c')
-        x = self.decoder_norm(x)
+        #x = rearrange(x, 'b h w c -> b (h w) c')
+        #x = self.decoder_norm(x)
 
         # predictor projection
-        x = self.decoder_pred(x)
+        #x = self.decoder_pred(x)
 
         # remove cls token
         # x = x[:, 1:, :]
@@ -232,12 +232,12 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
     def forward(self, imgs, mask_ratio=0.8):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*1]
-        loss = self.forward_loss(imgs, pred, mask)
-        return loss, pred, mask
+        pred = self.forward_regression(latent, ids_restore)  # [N, L, p*p*1]
+        #loss = self.forward_loss(imgs, pred, mask)
+        return pred
 
 def audioMae_vit_base_args(**kwargs):  #TODO: define the arguments according with the paper
     model = AudioMaskedAutoencoderViT(**kwargs)
     return model
 
-audioMae_vit_base = audioMae_vit_base_args
+audioMae_vit_base_R = audioMae_vit_base_args

@@ -11,12 +11,21 @@ import numpy as np
 import random
 
 from scipy import signal
+import json
 
 class SHMDataset(Dataset):
 
-    def __init__(self):
-        self.start_time, self.end_time = "05/12/2021 06:00", "05/12/2021 07:00"
-        self.path = '/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
+    def __init__(self, data_path, isPreTrain, isFineTuning):
+        if isPreTrain:
+            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 23:59"
+            self.datasetSize = 500000
+        if isFineTuning:
+            self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 11:59"
+            self.datasetSize = 200000
+        else:
+            self.start_time, self.end_time = "06/12/2021 12:00", "06/12/2021 23:59"
+            self.datasetSize = 50000
+        self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
         self.noisySensors = ["C12.1.4", "C17.1.2"]
         self.minDuration = 0.25
         self.data = self._readCSV()
@@ -25,9 +34,9 @@ class SHMDataset(Dataset):
         self.pesaDataDf = self._readLabels()
         self.labelsDf, self.groupsDf = self._labelAssignment()
         self.sampleRate = 100
-        self.frameLength = 256
-        self.stepLength = 64
-        self.windowLength= 6000
+        self.frameLength = 198
+        self.stepLength = 58
+        self.windowLength= 5990
         self.windowStep = 1500
         self.data, self.limits, self.totalWindows, self.min, self.max = self._partitioner()
 
@@ -41,7 +50,7 @@ class SHMDataset(Dataset):
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
         #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
-        return spectrogram, label
+        return torch.transpose(NormSpect, 1, 2), label
 
     def _readCSV(self):
         print(f'reading CSV files')
@@ -79,13 +88,15 @@ class SHMDataset(Dataset):
         return distanceToSensor
 
     def _readLabels(self):
+        start_time = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
+        end_time = datetime.strptime(self.end_time, '%d/%m/%Y %H:%M')
         pesaDataDf = pd.read_csv("/home/yhbedoya/Repositories/SHM-MAE/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
         pesaDataDf = pesaDataDf[["Id", "StartTimeStr", "ClassId", "GrossWeight", "Velocity", "VelocityUnit"]]
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
         pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["Time"]) + pd.to_timedelta(-1,'H')
         pesaDataDf.sort_values(by="Id", inplace=True)
-        pesaDataDf = pesaDataDf[(pesaDataDf["Time"]>="2021-12-05 06:00:00") & (pesaDataDf["Time"]<="2021-12-05 06:59:00")]
+        pesaDataDf = pesaDataDf[(pesaDataDf["Time"]>=start_time) & (pesaDataDf["Time"]<=end_time)]
         pesaDataDf.reset_index(drop=True, inplace=True)
         
         return pesaDataDf
@@ -239,7 +250,7 @@ class SHMDataset(Dataset):
         random.shuffle(indexes)
 
         for index in tqdm(indexes):
-            if cummulator >= 500000:
+            if cummulator >= self.datasetSize:
                 break
             for k,v in partitions.items():
                 if index in range(v[0], v[1]):
@@ -302,20 +313,30 @@ class SHMDataset(Dataset):
 
         return lower_bound, upper_bound
 
-    def _calculateThresholds(self,):
-        print(f'Start creating thresholds')
-        varDf = self.data[["sens_pos", "vars"]]
-        sensorsList = self.data["sens_pos"].unique()
-        sensorVarDict = {}
-        for sensor in tqdm(sensorsList):
-            if (sensor in self.noisySensors):
-                continue
-            sensorVarDf = varDf[varDf["sens_pos"]==sensor]
-            lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
-            sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
-            mean = sensorVarDf["vars"].mean()
-            std = sensorVarDf["vars"].std()
-            threshold = mean + 3.5 * std
-            sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
-        print(f'Finish thresholds creation')
+    def _calculateThresholds(self, isPreTrain):
+        if isPreTrain:
+            print(f'Start creating thresholds')
+            varDf = self.data[["sens_pos", "vars"]]
+            sensorsList = self.data["sens_pos"].unique()
+            sensorVarDict = {}
+            for sensor in tqdm(sensorsList):
+                sensorVarDf = varDf[varDf["sens_pos"]==sensor]
+                lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
+                sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
+                mean = sensorVarDf["vars"].mean()
+                std = sensorVarDf["vars"].std()
+                threshold = mean + 3.5 * std
+                sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
+                with open("sensorVarDict.json", "w") as f:
+                    # Write the dict to the file
+                    json.dump(sensorVarDict, f)
+            print(f'Finish thresholds creation')
+        else:
+            print(f'Start reading thresholds')
+            with open("sensorVarDict.json", "r") as f:
+                # Load the dict from the file
+                sensorVarDict = json.load(f)
+
+            print(f'Finish thresholds reading')
+
         return sensorVarDict

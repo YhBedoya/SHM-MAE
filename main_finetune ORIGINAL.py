@@ -23,15 +23,12 @@ from util.datasets import build_dataset
 from utils import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
-from util.DataLoadersSacertisLabels.SHM_DataSet4 import SHMDataset
-
-import models_audio_mae_R
-#import models_vit
+import models_vit
 
 from engine_finetune import train_one_epoch, evaluate
 
 def get_args_parser():
-    parser = argparse.ArgumentParser('SHM-MAE fine-tuning for traffic estimation', add_help=False)
+    parser = argparse.ArgumentParser('audioMAE fine-tuning for sound classification', add_help=False)
     parser.add_argument('--batch_size', default=64, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
     parser.add_argument('--epochs', default=50, type=int)
@@ -39,7 +36,7 @@ def get_args_parser():
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
     # Model parameters
-    parser.add_argument('--model', default='audioMae_vit_base_R', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='vit_large_patch16', type=str, metavar='MODEL',
                         help='Name of model to train')
 
     parser.add_argument('--input_size', default=224, type=int,
@@ -110,8 +107,6 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
                         help='dataset path')
-    parser.add_argument('--data_path_val', default='/datasets01/imagenet_full_size/061417/', type=str,
-                        help='dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
 
@@ -163,8 +158,8 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train = SHMDataset(data_path=args.data_path, isPreTrain=False, isFineTuning=True)
-    dataset_val = SHMDataset(data_path=args.data_path, isPreTrain=False, isFineTuning=False)
+    dataset_train = build_dataset(is_train=True, args=args)
+    dataset_val = build_dataset(is_train=False, args=args)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -210,15 +205,15 @@ def main(args):
     )
 
     mixup_fn = None
-    mixup_active = False #args.mixup > 0 or args.cutmix > 0. or args.cutmix_minmax is not None
-    #if mixup_active:
-    #    print("Mixup is activated!")
-    #    mixup_fn = Mixup(
-    #        mixup_alpha=args.mixup, cutmix_alpha=args.cutmix, cutmix_minmax=args.cutmix_minmax,
-    #        prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
-    #        label_smoothing=args.smoothing, num_classes=args.nb_classes)
+    mixup_active = args.mixup > 0 or args.cutmix > 0. or args.cutmix_minmax is not None
+    if mixup_active:
+        print("Mixup is activated!")
+        mixup_fn = Mixup(
+            mixup_alpha=args.mixup, cutmix_alpha=args.cutmix, cutmix_minmax=args.cutmix_minmax,
+            prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
+            label_smoothing=args.smoothing, num_classes=args.nb_classes)
 
-    model = models_audio_mae_R.__dict__[args.model](
+    model = models_vit.__dict__[args.model](
         num_classes=args.nb_classes,
         drop_path_rate=args.drop_path,
         global_pool=args.global_pool,
@@ -284,8 +279,10 @@ def main(args):
     if mixup_fn is not None:
         # smoothing is handled with mixup label transform
         criterion = SoftTargetCrossEntropy()
+    elif args.smoothing > 0.:
+        criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
-        criterion = torch.nn.MSELoss()
+        criterion = torch.nn.CrossEntropyLoss()
 
     print("criterion = %s" % str(criterion))
 
@@ -321,6 +318,7 @@ def main(args):
 
         if log_writer is not None:
             log_writer.add_scalar('perf/test_acc1', test_stats['acc1'], epoch)
+            log_writer.add_scalar('perf/test_acc5', test_stats['acc5'], epoch)
             log_writer.add_scalar('perf/test_loss', test_stats['loss'], epoch)
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},

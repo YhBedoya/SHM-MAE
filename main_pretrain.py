@@ -36,7 +36,7 @@ import timm.optim.optim_factory as optim_factory
 
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
-from util.DataLoadersINSIST.SHM_DataSet5 import SHMDataset
+from util.DataLoadersSacertisLabels.SHM_DataSet4 import SHMDataset
 import models_audio_mae
 
 from engine_pretrain import train_one_epoch
@@ -129,7 +129,7 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train = SHMDataset(data_path=args.data_path)
+    dataset_train = SHMDataset(data_path=args.data_path, isPreTrain=True, isFineTuning=False)
     print(dataset_train)
 
     if True:  # args.distributed:
