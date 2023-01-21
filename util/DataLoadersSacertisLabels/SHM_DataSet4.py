@@ -327,13 +327,13 @@ class SHMDataset(Dataset):
                 std = sensorVarDf["vars"].std()
                 threshold = mean + 3.5 * std
                 sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
-                with open("sensorVarDict.json", "w") as f:
+                with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/sensorVarDict.json", "w") as f:
                     # Write the dict to the file
                     json.dump(sensorVarDict, f)
             print(f'Finish thresholds creation')
         else:
             print(f'Start reading thresholds')
-            with open("sensorVarDict.json", "r") as f:
+            with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/sensorVarDict.json", "r") as f:
                 # Load the dict from the file
                 sensorVarDict = json.load(f)
 
