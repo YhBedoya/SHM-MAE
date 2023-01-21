@@ -244,7 +244,7 @@ def main(args):
         #    assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
 
         # manually initialize fc layer
-        trunc_normal_(model.head.weight, std=2e-5)
+        trunc_normal_(model.linear.weight, std=2e-5)
 
     model.to(device)
 
