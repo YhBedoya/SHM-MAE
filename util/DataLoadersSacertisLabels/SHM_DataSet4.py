@@ -30,7 +30,7 @@ class SHMDataset(Dataset):
         self.minDuration = 0.25
         self.data = self._readCSV()
         self.distanceToSensor = self._readDistanceToSensor()
-        self.sensorVarDict = self._calculateThresholds()
+        self.sensorVarDict = self._calculateThresholds(isPreTrain=isPreTrain)
         self.pesaDataDf = self._readLabels()
         self.labelsDf, self.groupsDf = self._labelAssignment()
         self.sampleRate = 100
