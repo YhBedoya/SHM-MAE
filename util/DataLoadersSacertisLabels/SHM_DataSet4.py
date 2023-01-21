@@ -17,7 +17,7 @@ class SHMDataset(Dataset):
 
     def __init__(self, data_path, isPreTrain, isFineTuning):
         if isPreTrain:
-            self.start_time, self.end_time = "05/12/2021 23:30", "05/12/2021 00:00"
+            self.start_time, self.end_time = "05/12/2021 23:30", "06/12/2021 00:00"
             self.datasetSize = 500000
         if isFineTuning:
             self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 11:59"
