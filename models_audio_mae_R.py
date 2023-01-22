@@ -50,7 +50,7 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         # Regression task
-        self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * (1 - mask_ratio))
+        self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * round((1 - mask_ratio), 2))
         print(f"Regression input: {embed_dim} + {self.grid_h} * {self.grid_w} * ({(1 - mask_ratio)})")
         self.linear = nn.Linear(self.regressionInputShape, 1, bias=True)
 
