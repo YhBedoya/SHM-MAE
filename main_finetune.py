@@ -36,7 +36,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('SHM-MAE fine-tuning for traffic estimation', add_help=False)
     parser.add_argument('--batch_size', default=64, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
-    parser.add_argument('--epochs', default=50, type=int)
+    parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
@@ -102,7 +102,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='/content/drive/MyDrive/SHM/output_dir_AD/pretrainModels/checkpoint-49.pth',
+    parser.add_argument('--finetune', default='/home/yvelez/SHM-MAE/output_dir_TE/checkpoint-199.pth',
                         help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
@@ -110,16 +110,16 @@ def get_args_parser():
                         help='Use class token instead of global pool for classification')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/content/drive/MyDrive/traffic/', type=str,
+    parser.add_argument('--data_path', default='/home/yvelez/sacertis/traffic/20211206/', type=str,
                         help='dataset path')
-    parser.add_argument('--data_path_val', default='/content/drive/MyDrive/traffic/', type=str,
+    parser.add_argument('--data_path_val', default='/home/yvelez/sacertis/traffic/20211206/', type=str,
                         help='dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
 
-    parser.add_argument('--output_dir', default='/content/drive/MyDrive/SHM/output_dir_AD',
+    parser.add_argument('--output_dir', default='/home/yvelez/SHM-MAE/output_dir_TEFT',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='/content/drive/MyDrive/SHM/output_dir_AD',
+    parser.add_argument('--log_dir', default='/home/yvelez/SHM-MAE/output_dir_TEFT',
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
