@@ -108,7 +108,7 @@ class SHMDataset(Dataset):
         outliers = slice[slice["outlier"] == True].reset_index().to_dict("records")
 
         if len(outliers) == 0:
-            return None
+            return pd.DataFrame()
 
         last = minTime
         timeStart = outliers[0]["ts"]
