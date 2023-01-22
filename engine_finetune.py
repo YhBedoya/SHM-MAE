@@ -55,6 +55,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         with torch.cuda.amp.autocast():
             outputs = model(samples)
             outputs = outputs.squeeze()
+            print(f"output shape: {outputs.shape}")
+            print(f"targets shape: {targets.shape}")
             loss = criterion(outputs, targets.float())
 
         loss_value = loss.item()
@@ -118,14 +120,14 @@ def evaluate(data_loader, model, device):
             output = model(images)
             loss = criterion(output, target)
 
-        acc1 = L1Loss(output, target)
+        mae1 = L1Loss(output, target)
 
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())
-        metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
+        metric_logger.meters['mae1'].update(mae1.item(), n=batch_size)
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    print('* Acc@1 {top1.global_avg:.3f} loss {losses.global_avg:.3f}'
+    print('* mae1@1 {top1.global_avg:.3f} loss(MSE) {losses.global_avg:.3f}'
           .format(top1=metric_logger.acc1, losses=metric_logger.loss))
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
