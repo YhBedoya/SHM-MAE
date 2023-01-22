@@ -50,7 +50,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         # Regression task
-        self.regressionInputShape = 61440
+        self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * (1 - mask_ratio))
+        print(f"Regression input: {embed_dim} + {self.grid_h} * {self.grid_w} * ({(1 - mask_ratio)})")
         self.linear = nn.Linear(self.regressionInputShape, 1, bias=True)
 
         #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
@@ -184,7 +185,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def forward_regression(self, x, ids_restore):
 
         # embed tokens
-        x = torch.reshape(x, (64, self.regressionInputShape))
+        N, L, D = x.shape  # batch, length, dim
+        x = torch.reshape(x, (N, self.regressionInputShape))
         x = self.linear(x) #[:, 1:, :]
 
         # append mask tokens to sequence
@@ -235,7 +237,6 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
     def forward(self, imgs, mask_ratio=0.8):
         latent, mask, ids_restore = self.forward_encoder(imgs, self.mask_ratio)
-        print(f"Latent shape: {latent.shape}")
         pred = self.forward_regression(latent, ids_restore)  # [N, L, p*p*1]
         #loss = self.forward_loss(imgs, pred, mask)
         return pred
