@@ -102,7 +102,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_AD/pretrainModels/checkpoint-49.pth',
+    parser.add_argument('--finetune', default='/content/drive/MyDrive/SHM/output_dir_AD/pretrainModels/checkpoint-49.pth',
                         help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
