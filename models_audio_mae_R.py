@@ -50,9 +50,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         # Regression task
-        self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * (1-self.mask_ratio))
-        print(f"Input regression: {self.regressionInputShape}")
-        self.linear = nn.Linear(61440, 1, bias=True)
+        self.regressionInputShape = 61440
+        self.linear = nn.Linear(self.regressionInputShape, 1, bias=True)
 
         #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
