@@ -55,8 +55,6 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         with torch.cuda.amp.autocast():
             outputs = model(samples)
             outputs = outputs.squeeze()
-            print(f"output shape: {outputs.shape}")
-            print(f"targets shape: {targets.shape}")
             loss = criterion(outputs, targets.float())
 
         loss_value = loss.item()
@@ -110,24 +108,25 @@ def evaluate(data_loader, model, device):
     model.eval()
 
     for batch in metric_logger.log_every(data_loader, 10, header):
-        images = batch[0]
-        target = batch[-1]
-        images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
+        samples = batch[0]
+        targets = batch[-1]
+        samples = samples.to(device, non_blocking=True)
+        targets = targets.to(device, non_blocking=True)
 
         # compute output
         with torch.cuda.amp.autocast():
-            output = model(images)
-            loss = criterion(output, target)
+            outputs = model(samples)
+            outputs = outputs.squeeze()
+            loss = criterion(outputs, targets)
 
-        mae1 = L1Loss(output, target)
+        mae1 = L1Loss(outputs, targets)
 
-        batch_size = images.shape[0]
+        batch_size = samples.shape[0]
         metric_logger.update(loss=loss.item())
         metric_logger.meters['mae1'].update(mae1.item(), n=batch_size)
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print('* mae1@1 {top1.global_avg:.3f} loss(MSE) {losses.global_avg:.3f}'
-          .format(top1=metric_logger.acc1, losses=metric_logger.loss))
+          .format(top1=metric_logger.mae1, losses=metric_logger.loss))
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
