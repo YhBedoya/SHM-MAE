@@ -17,13 +17,13 @@ class SHMDataset(Dataset):
 
     def __init__(self, data_path, isPreTrain, isFineTuning):
         if isPreTrain:
-            self.start_time, self.end_time = "05/12/2021 23:30", "06/12/2021 00:00"
+            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 23:59"
             self.datasetSize = 500000
         elif isFineTuning:
-            self.start_time, self.end_time = "05/12/2021 23:30", "05/12/2021 23:40"
+            self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 11:59"
             self.datasetSize = 200000
         else:
-            self.start_time, self.end_time = "05/12/2021 23:40", "05/12/2021 23:50"
+            self.start_time, self.end_time = "06/12/2021 12:00", "06/12/2021 23:59"
             self.datasetSize = 50000
         self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
         self.noisySensors = ["C12.1.4", "C17.1.2"]
@@ -38,7 +38,13 @@ class SHMDataset(Dataset):
         self.stepLength = 58
         self.windowLength= 5990
         self.windowStep = 1500
-        self.data, self.limits, self.totalWindows, self.min, self.max = self._partitioner()
+        self.data, self.limits, self.totalWindows, min, max = self._partitioner()
+        if isPreTrain:
+            self.min = min
+            self.max = max
+        else:
+            self.min = -19.198951409472006
+            self.max = -4.203987498626368
 
     def __len__(self):
         return self.totalWindows
