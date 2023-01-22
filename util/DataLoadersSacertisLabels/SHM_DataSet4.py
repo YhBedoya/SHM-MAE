@@ -175,10 +175,11 @@ class SHMDataset(Dataset):
             sensorData = self.data[self.data["sens_pos"]==sensor]
             threshold = self.sensorVarDict[sensor]["threshold"]
             groupsDf = self.groupsGenerator(sensorData, minTime, maxTime, threshold)
-            availableGroupsDf = groupsDf.copy(deep=True)
             print(f"Total groups found for sensor {sensor}: {groupsDf.shape[0]}")
-            if availableGroupsDf.empty:
+            if groupsDf.empty:
                 continue
+
+            availableGroupsDf = groupsDf.copy(deep=True)
             for index, row in sensorLabelsDf.iterrows():
                 if row["Id"] in assignedLabels:
                     continue
