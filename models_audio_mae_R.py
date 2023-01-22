@@ -232,6 +232,7 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
     def forward(self, imgs, mask_ratio=0.8):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
+        print(f"Latent shape: {latent.shape}")
         pred = self.forward_regression(latent, ids_restore)  # [N, L, p*p*1]
         #loss = self.forward_loss(imgs, pred, mask)
         return pred

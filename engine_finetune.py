@@ -49,11 +49,16 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         samples = samples.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
 
-        if mixup_fn is not None:
-            samples, targets = mixup_fn(samples, targets)
+        print(f"samples shape {samples.shape}, type {type(samples)}")
+        print(f"targets shape {targets.shape}, type {type(targets)}")
+
+        #if mixup_fn is not None:
+        #    samples, targets = mixup_fn(samples, targets)
 
         with torch.cuda.amp.autocast():
             outputs = model(samples)
+            print(f"samples shape {outputs.shape}, type {type(outputs)}")
+            print(f"targets shape {targets.shape}, type {type(targets)}")
             loss = criterion(outputs, targets.float())
 
         loss_value = loss.item()
