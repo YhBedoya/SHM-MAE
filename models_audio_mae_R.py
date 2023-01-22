@@ -28,10 +28,11 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def __init__(self, num_mels=100, mel_len=100, patch_size=5, in_chans=1,  #TODO: encoder_depth=12, decoder_depth=16
                  embed_dim=768, encoder_depth=3, num_heads=12,
                  decoder_embed_dim=512, decoder_depth=4, decoder_num_heads=16,
-                 mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False):
+                 mlp_ratio=4., mask_ratio=0.8, norm_layer=nn.LayerNorm, norm_pix_loss=False):
         super().__init__()
 
         # --------------------------------------------------------------------------
+        self.mask_ratio = mask_ratio
         # MAE encoder specifics
         self.patch_embed = PatchEmbed((mel_len, num_mels), (patch_size, patch_size), in_chans, embed_dim)
         num_patches = self.patch_embed.num_patches
@@ -49,7 +50,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         # Regression task
-        self.linear = nn.Linear(embed_dim, 1, bias=True)
+        self.regressionInputShape = embed_dim * self.grid_h * self.grid_w * (1-self.mask_ratio)
+        self.linear = nn.Linear(self.regressionInputShape, 1, bias=True)
 
         #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
@@ -182,7 +184,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def forward_regression(self, x, ids_restore):
 
         # embed tokens
-        x = self.linear(x[:, 1:, :])
+        x = torch.reshape(x, (64, self.regressionInputShape))
+        x = self.linear(x) #[:, 1:, :]
 
         # append mask tokens to sequence
 
@@ -231,7 +234,7 @@ class AudioMaskedAutoencoderViT(nn.Module):
         return loss
 
     def forward(self, imgs, mask_ratio=0.8):
-        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
+        latent, mask, ids_restore = self.forward_encoder(imgs, self.mask_ratio)
         print(f"Latent shape: {latent.shape}")
         pred = self.forward_regression(latent, ids_restore)  # [N, L, p*p*1]
         #loss = self.forward_loss(imgs, pred, mask)
