@@ -179,7 +179,11 @@ class SHMDataset(Dataset):
             sensorLabelsDf.sort_values("GrossWeight", inplace=True, ascending=False)
 
             sensorData = self.data[self.data["sens_pos"]==sensor]
-            threshold = self.sensorVarDict[sensor]["threshold"]
+            try:
+                threshold = self.sensorVarDict[sensor]["threshold"]
+            except:
+                print(f"No threshold for sensor {sensor}")
+                continue
             groupsDf = self.groupsGenerator(sensorData, minTime, maxTime, threshold)
             print(f"Total groups found for sensor {sensor}: {groupsDf.shape[0]}")
             if groupsDf.empty:
