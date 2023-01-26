@@ -43,8 +43,8 @@ class SHMDataset(Dataset):
             self.min = min
             self.max = max
         else:
-            self.min = -19.198951409472006
-            self.max = -4.203987498626368
+            self.min = -24.496400092774163
+            self.max = -3.3793421008937514
 
     def __len__(self):
         return self.totalWindows
