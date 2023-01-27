@@ -167,7 +167,7 @@ class SHMDataset(Dataset):
 
         sensorsList = self.data["sens_pos"].unique()
         for sensor in sensorsList:
-            if (sensor in self.noisySensors):
+            if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()):
                 continue
             assignedLabels = {}
             assignedLabels2 = {}
@@ -239,7 +239,7 @@ class SHMDataset(Dataset):
         limits = dict()
         print(f'Generating windows')
         for sensor in tqdm(sensors):
-            if (sensor in self.noisySensors):
+            if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()):
                 continue
             sensorData = self.data[self.data['sens_pos']==sensor]
             totalFrames = sensorData.shape[0]
@@ -331,6 +331,8 @@ class SHMDataset(Dataset):
             sensorsList = self.data["sens_pos"].unique()
             sensorVarDict = {}
             for sensor in tqdm(sensorsList):
+                if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()):
+                    continue
                 sensorVarDf = varDf[varDf["sens_pos"]==sensor]
                 lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
                 sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
