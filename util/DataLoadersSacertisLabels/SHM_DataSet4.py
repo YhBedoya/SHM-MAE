@@ -87,7 +87,7 @@ class SHMDataset(Dataset):
 
     def _readDistanceToSensor(self):
         distanceToSensor = {}
-        with open('/home/yvelez/sacertis/distanceToSensor.csv') as f:
+        with open('/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/distanceToSensor.csv') as f:
             for line in f.readlines():
                 sensor, distance = line.replace("'", "").replace("\n","").split(",")
                 distanceToSensor[sensor] = float(distance)
