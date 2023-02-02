@@ -96,7 +96,7 @@ class SHMDataset(Dataset):
     def _readLabels(self):
         start_time = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
         end_time = datetime.strptime(self.end_time, '%d/%m/%Y %H:%M')
-        pesaDataDf = pd.read_csv("/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
+        pesaDataDf = pd.read_csv("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
         pesaDataDf = pesaDataDf[["Id", "StartTimeStr", "ClassId", "GrossWeight", "Velocity", "VelocityUnit"]]
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
         pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
@@ -325,7 +325,7 @@ class SHMDataset(Dataset):
         return lower_bound, upper_bound
 
     def _calculateThresholds(self, isPreTrain):
-        if isPreTrain:
+        if True:#if isPreTrain:
             print(f'Start creating thresholds')
             varDf = self.data[["sens_pos", "vars"]]
             sensorsList = self.data["sens_pos"].unique()
@@ -340,13 +340,13 @@ class SHMDataset(Dataset):
                 std = sensorVarDf["vars"].std()
                 threshold = mean + 3.5 * std
                 sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
-                with open("/home/yvelez/sacertis/sensorVarDict.json", "w") as f:
-                    # Write the dict to the file
-                    json.dump(sensorVarDict, f)
+                #with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/sensorVarDict.json", "w") as f:
+                #    # Write the dict to the file
+                #    json.dump(sensorVarDict, f)
             print(f'Finish thresholds creation')
         else:
             print(f'Start reading thresholds')
-            with open("/home/yvelez/sacertis/sensorVarDict.json", "r") as f:
+            with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/sensorVarDict.json", "r") as f:
                 # Load the dict from the file
                 sensorVarDict = json.load(f)
 
