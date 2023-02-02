@@ -110,16 +110,16 @@ def get_args_parser():
                         help='Use class token instead of global pool for classification')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/home/yvelez/sacertis/traffic/20211206/', type=str,
+    parser.add_argument('--data_path', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/', type=str,
                         help='dataset path')
-    parser.add_argument('--data_path_val', default='/home/yvelez/sacertis/traffic/20211206/', type=str,
+    parser.add_argument('--data_path_val', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/', type=str,
                         help='dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
 
-    parser.add_argument('--output_dir', default='/home/yvelez/SHM-MAE/output_dir_TE',
+    parser.add_argument('--output_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='/home/yvelez/SHM-MAE/output_dir_TE',
+    parser.add_argument('--log_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE',
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
