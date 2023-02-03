@@ -56,7 +56,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             outputs = model(samples)
             outputs = outputs.squeeze()
             loss = criterion(outputs, targets.float())
-            print(f"Output shape: {outputs.shape}, targets: {targets.shape}, loss:{loss}")
+            if not loss == loss:
+                print(f"Output shape: {outputs}")
+                print(f"Targets: {targets}")
+                print(f"Loss:{loss}")
 
         loss_value = loss.item()
 
