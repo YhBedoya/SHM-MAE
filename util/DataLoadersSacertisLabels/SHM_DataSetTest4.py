@@ -28,17 +28,17 @@ class SHMDataset(Dataset):
             self.start_time, self.end_time = "05/12/2021 23:45", "05/12/2021 23:59"
             self.datasetSize = 500000
         elif isFineTuning:
-            self.start_time, self.end_time = "05/12/2021 23:45", "05/12/2021 23:59"
+            self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 00:15"
             self.datasetSize = 200000
         else:
             self.start_time, self.end_time = "06/12/2021 12:00", "06/12/2021 23:59"
             self.datasetSize = 50000
-        self.path = '/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
+        self.path = '/home/yhbedoya/Repositories/SHM-MAE/traffic/20211206/'
         self.noisySensors = ["C12.1.4", "C17.1.2"]
         self.minDuration = 0.25
         self.data = self._readCSV()
         self.distanceToSensor = self._readDistanceToSensor()
-        self.sensorVarDict = self._calculateThresholds(isPreTrain)
+        self.sensorVarDict = self._calculateThresholds(isPreTrain=isPreTrain)
         self.pesaDataDf = self._readLabels()
         self.labelsDf, self.groupsDf = self._labelAssignment()
         self.sampleRate = 100
@@ -46,7 +46,13 @@ class SHMDataset(Dataset):
         self.stepLength = 58
         self.windowLength= 5990
         self.windowStep = 1500
-        self.data, self.limits, self.totalWindows, self.min, self.max = self._partitioner()
+        self.data, self.limits, self.totalWindows, min, max = self._partitioner()
+        if isPreTrain:
+            self.min = min
+            self.max = max
+        else:
+            self.min = -24.496400092774163
+            self.max = -3.3793421008937514
 
     def __len__(self):
         return self.totalWindows
@@ -116,7 +122,7 @@ class SHMDataset(Dataset):
         outliers = slice[slice["outlier"] == True].reset_index().to_dict("records")
 
         if len(outliers) == 0:
-            return None
+            return pd.DataFrame()
 
         last = minTime
         timeStart = outliers[0]["ts"]
@@ -152,9 +158,9 @@ class SHMDataset(Dataset):
         signalPower = np.sqrt(np.mean(np.array(groupSignal)**2))**2 
         pointMaxVar = groupTimes[np.argmax(groupVars)]
         if ((end-start).total_seconds() > self.minDuration):
-                label = {"groupId": groupId,"start": start, "end": end, "signalPower": signalPower, 
-                "pointMaxVar": pointMaxVar}
-                groups.append(label)
+            label = {"groupId": groupId,"start": start, "end": end, "signalPower": signalPower, 
+            "pointMaxVar": pointMaxVar}
+            groups.append(label)
 
         if len(groups)>0:
             groupsDf = pd.DataFrame(groups).sort_values("signalPower", ascending=False)
@@ -169,7 +175,7 @@ class SHMDataset(Dataset):
 
         sensorsList = self.data["sens_pos"].unique()
         for sensor in sensorsList:
-            if (sensor in self.noisySensors):
+            if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()) or (sensor not in self.sensorVarDict.keys()):
                 continue
             assignedLabels = {}
             assignedLabels2 = {}
@@ -182,11 +188,13 @@ class SHMDataset(Dataset):
 
             sensorData = self.data[self.data["sens_pos"]==sensor]
             threshold = self.sensorVarDict[sensor]["threshold"]
+
             groupsDf = self.groupsGenerator(sensorData, minTime, maxTime, threshold)
-            availableGroupsDf = groupsDf.copy(deep=True)
             print(f"Total groups found for sensor {sensor}: {groupsDf.shape[0]}")
-            if availableGroupsDf.empty:
+            if groupsDf.empty:
                 continue
+
+            availableGroupsDf = groupsDf.copy(deep=True)
             for index, row in sensorLabelsDf.iterrows():
                 if row["Id"] in assignedLabels:
                     continue
@@ -236,7 +244,7 @@ class SHMDataset(Dataset):
         limits = dict()
         print(f'Generating windows')
         for sensor in tqdm(sensors):
-            if (sensor in self.noisySensors):
+            if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()):
                 continue
             sensorData = self.data[self.data['sens_pos']==sensor]
             totalFrames = sensorData.shape[0]
@@ -260,7 +268,7 @@ class SHMDataset(Dataset):
         for index in tqdm(indexes):
             if cummulator >= self.datasetSize:
                 break
-            for k,v in partitions.items():
+            for sensor,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     timeSlice = timestamps[start: start+self.windowLength]
@@ -322,12 +330,14 @@ class SHMDataset(Dataset):
         return lower_bound, upper_bound
 
     def _calculateThresholds(self, isPreTrain):
-        if isPreTrain:
+        if False:#if isPreTrain:
             print(f'Start creating thresholds')
             varDf = self.data[["sens_pos", "vars"]]
             sensorsList = self.data["sens_pos"].unique()
             sensorVarDict = {}
             for sensor in tqdm(sensorsList):
+                if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()):
+                    continue
                 sensorVarDf = varDf[varDf["sens_pos"]==sensor]
                 lower_bound, upper_bound = self.interquartileRule(sensorVarDf["vars"])
                 sensorVarDf = sensorVarDf[(sensorVarDf["vars"]>lower_bound) & (sensorVarDf["vars"]<upper_bound)]
@@ -335,13 +345,13 @@ class SHMDataset(Dataset):
                 std = sensorVarDf["vars"].std()
                 threshold = mean + 3.5 * std
                 sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
-                with open("sensorVarDict.json", "w") as f:
-                    # Write the dict to the file
-                    json.dump(sensorVarDict, f)
+                #with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/sensorVarDict.json", "w") as f:
+                #    # Write the dict to the file
+                #    json.dump(sensorVarDict, f)
             print(f'Finish thresholds creation')
         else:
             print(f'Start reading thresholds')
-            with open("sensorVarDict.json", "r") as f:
+            with open("/home/yhbedoya/Repositories/SHM-MAE/util/DataLoadersSacertisLabels/sensorVarDict.json", "r") as f:
                 # Load the dict from the file
                 sensorVarDict = json.load(f)
 
@@ -350,9 +360,9 @@ class SHMDataset(Dataset):
         return sensorVarDict
 
     
-def plotSpect(frequencies, times, spectrogram, index, label):
+def plotSpect(frequencies, times, spectrogram, index, label, sensor):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD Vehicles: {label}')
+    plt.title(f'spectrogram from PSD Vehicles: {label}, sensor: {sensor}')
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
@@ -377,7 +387,7 @@ if __name__ == "__main__":
     #indexes = range(0,len(gen))
     for i in tqdm(indexes):
         frequencies, times, spectrogram, label, timeSlice, sensor = gen[i]
-        plotSpect(frequencies, times, spectrogram, i, label)
+        plotSpect(frequencies, times, spectrogram, i, label, sensor)
 
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
     #indexes = range(56700, 56900)

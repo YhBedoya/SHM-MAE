@@ -20,10 +20,10 @@ class SHMDataset(Dataset):
             self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 00:10"
             self.datasetSize = 500000
         elif isFineTuning:
-            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 00:29"
+            self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 00:59"
             self.datasetSize = 200000
         else:
-            self.start_time, self.end_time = "05/12/2021 00:30", "05/12/2021 00:39"
+            self.start_time, self.end_time = "05/12/2021 01:00", "05/12/2021 01:29"
             self.datasetSize = 50000
         self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
         self.noisySensors = ["C12.1.4", "C17.1.2"]
@@ -150,9 +150,9 @@ class SHMDataset(Dataset):
         signalPower = np.sqrt(np.mean(np.array(groupSignal)**2))**2 
         pointMaxVar = groupTimes[np.argmax(groupVars)]
         if ((end-start).total_seconds() > self.minDuration):
-                label = {"groupId": groupId,"start": start, "end": end, "signalPower": signalPower, 
-                "pointMaxVar": pointMaxVar}
-                groups.append(label)
+            label = {"groupId": groupId,"start": start, "end": end, "signalPower": signalPower, 
+            "pointMaxVar": pointMaxVar}
+            groups.append(label)
 
         if len(groups)>0:
             groupsDf = pd.DataFrame(groups).sort_values("signalPower", ascending=False)
@@ -167,7 +167,7 @@ class SHMDataset(Dataset):
 
         sensorsList = self.data["sens_pos"].unique()
         for sensor in sensorsList:
-            if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()):
+            if (sensor in self.noisySensors) or (sensor not in self.distanceToSensor.keys()) or (sensor not in self.sensorVarDict.keys()):
                 continue
             assignedLabels = {}
             assignedLabels2 = {}
@@ -179,11 +179,8 @@ class SHMDataset(Dataset):
             sensorLabelsDf.sort_values("GrossWeight", inplace=True, ascending=False)
 
             sensorData = self.data[self.data["sens_pos"]==sensor]
-            try:
-                threshold = self.sensorVarDict[sensor]["threshold"]
-            except:
-                print(f"No threshold for sensor {sensor}")
-                continue
+            threshold = self.sensorVarDict[sensor]["threshold"]
+
             groupsDf = self.groupsGenerator(sensorData, minTime, maxTime, threshold)
             print(f"Total groups found for sensor {sensor}: {groupsDf.shape[0]}")
             if groupsDf.empty:
@@ -263,7 +260,7 @@ class SHMDataset(Dataset):
         for index in tqdm(indexes):
             if cummulator >= self.datasetSize:
                 break
-            for k,v in partitions.items():
+            for sensor,v in partitions.items():
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     timeSlice = timestamps[start: start+self.windowLength]
@@ -325,7 +322,7 @@ class SHMDataset(Dataset):
         return lower_bound, upper_bound
 
     def _calculateThresholds(self, isPreTrain):
-        if True:#if isPreTrain:
+        if isPreTrain:
             print(f'Start creating thresholds')
             varDf = self.data[["sens_pos", "vars"]]
             sensorsList = self.data["sens_pos"].unique()

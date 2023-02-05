@@ -52,9 +52,9 @@ class AudioMaskedAutoencoderViT(nn.Module):
         # --------------------------------------------------------------------------
         # Regression task
         self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * round((1 - mask_ratio), 2))
-        self.fc1 = nn.Linear(self.regressionInputShape, self.hiddenSize, bias=True)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
+        self.fc1 = nn.Linear(self.regressionInputShape, 1, bias=True)
+        #self.relu = nn.ReLU()
+        #self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
 
         #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
@@ -190,8 +190,6 @@ class AudioMaskedAutoencoderViT(nn.Module):
         N, L, D = x.shape  # batch, length, dim
         x = torch.reshape(x, (N, self.regressionInputShape))
         x = self.fc1(x) #[:, 1:, :]
-        x = self.relu(x)
-        x = self.fc2(x)
 
         # append mask tokens to sequence
 
