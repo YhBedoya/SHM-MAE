@@ -5,16 +5,14 @@ import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
 from scipy import signal
-import argparse
 from torch.utils.data import Dataset
 import random
 
 import os
-os.chdir("/home/yhbedoya/Repositories/SHM-MAE")
+#os.chdir("/home/yhbedoya/Repositories/SHM-MAE")
 import models_audio_mae_R
 import glob
 pd.options.mode.chained_assignment = None
-import os
 import json
 
 # define the utils
