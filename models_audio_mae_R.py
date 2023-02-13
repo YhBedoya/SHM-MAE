@@ -193,13 +193,12 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def forward_regression(self, x, ids_restore):
 
         # embed tokens
-        N, L, D = x.shape  # batch, length, dim
+        #N, L = x.shape  # batch, length, dim
         print("During regression")
         print(f"input shape {x.shape}")
-        x = torch.reshape(x, (N, self.embed_dim))
-        print(f"input reshape {x.shape}")
+        #x = torch.reshape(x, (N, self.embed_dim))
         x = self.fc1(x) #[:, 1:, :]
-
+        print(f"output shape {x.shape}")
         # append mask tokens to sequence
 
         #mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] - x.shape[1], 1)
