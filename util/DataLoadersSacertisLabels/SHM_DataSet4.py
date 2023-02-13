@@ -17,13 +17,13 @@ class SHMDataset(Dataset):
 
     def __init__(self, data_path, isPreTrain, isFineTuning, isEvaluation):
         if isPreTrain:
-            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 00:59" #"05/12/2021 00:00", "05/12/2021 23:59"
+            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 01:00" #"05/12/2021 00:00", "05/12/2021 23:59"
             self.datasetSize = 500000
         elif isFineTuning:
-            self.start_time, self.end_time = "05/12/2021 23:00", "05/12/2021 23:29" #"06/12/2021 00:00", "06/12/2021 11:59"
+            self.start_time, self.end_time = "05/12/2021 23:30", "05/12/2021 23:45" #"06/12/2021 00:00", "06/12/2021 11:59"
             self.datasetSize = 200000
         elif isEvaluation:
-            self.start_time, self.end_time = "05/12/2021 23:30", "05/12/2021 23:59" #"06/12/2021 12:00", "06/12/2021 17:59"
+            self.start_time, self.end_time = "05/12/2021 23:45", "05/12/2021 23:59" #"06/12/2021 12:00", "06/12/2021 17:59"
             self.datasetSize = 50000
         else:
             self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 23:59" #"06/12/2021 17:59", "06/12/2021 23:59"
