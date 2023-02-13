@@ -185,16 +185,19 @@ class AudioMaskedAutoencoderViT(nn.Module):
         x = self.encoder(x)
         x = self.norm(x)
         print(f"output transformers shape {x.shape}")
+        cls_tokens_lt = x[:, 0, :]
+        print(f"possible CLS shape {cls_tokens_lt.shape}")
 
-        print(f"possible CLS shape {x[:, 0, :]}")
-
-        return x, mask, ids_restore
+        return cls_tokens_lt, mask, ids_restore
 
     def forward_regression(self, x, ids_restore):
 
         # embed tokens
         N, L, D = x.shape  # batch, length, dim
-        x = torch.reshape(x, (N, self.regressionInputShape))
+        print("During regression")
+        print(f"input shape {x.shape}")
+        x = torch.reshape(x, (N, self.embed_dim))
+        print(f"input reshape {x.shape}")
         x = self.fc1(x) #[:, 1:, :]
 
         # append mask tokens to sequence
