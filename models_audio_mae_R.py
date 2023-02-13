@@ -173,14 +173,20 @@ class AudioMaskedAutoencoderViT(nn.Module):
         # masking: length -> length * mask_ratio
         x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
+        print(f"preliminar x shape: {x.shape}")
         # append cls token
         cls_token = self.cls_token + self.pos_embed[:, :1, :]
         cls_tokens = cls_token.expand(x.shape[0], -1, -1)
+        print(f"preliminar cls shape: {cls_tokens.shape}")
         x = torch.cat((cls_tokens, x), dim=1)
+        print(f"Concat shape {x.shape}")
 
         # apply Transformer blocks
         x = self.encoder(x)
         x = self.norm(x)
+        print(f"output transformers shape {x.shape}")
+
+        print(f"possible CLS shape {x[:, 0, :]}")
 
         return x, mask, ids_restore
 

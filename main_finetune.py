@@ -102,7 +102,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='/home/yvelez/SHM-MAE/output_dir_TE/pre-train/checkpoint-199.pth',
+    parser.add_argument('--finetune', default= "/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/pre-train/checkpoint-199.pth",  #'/home/yvelez/SHM-MAE/output_dir_TE/pre-train/checkpoint-199.pth',
                         help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
@@ -110,16 +110,16 @@ def get_args_parser():
                         help='Use class token instead of global pool for classification')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/home/yvelez/sacertis/traffic/20211206/', type=str,
+    parser.add_argument('--data_path', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic', type=str, #'/home/yvelez/sacertis/traffic/20211206/'
                         help='dataset path')
-    parser.add_argument('--data_path_val', default='/home/yvelez/sacertis/traffic/20211206/', type=str,
+    parser.add_argument('--data_path_val', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic', type=str, #'/home/yvelez/sacertis/traffic/20211206/'
                         help='dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
 
-    parser.add_argument('--output_dir', default='/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning',
+    parser.add_argument('--output_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE', #'/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning',
+    parser.add_argument('--log_dir', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE',  #'/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning',
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
@@ -165,8 +165,8 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train = SHMDataset(data_path=args.data_path, isPreTrain=False, isFineTuning=True)
-    dataset_val = SHMDataset(data_path=args.data_path_val, isPreTrain=False, isFineTuning=False)
+    dataset_train = SHMDataset(data_path=args.data_path, isPreTrain=False, isFineTuning=True, isEvaluation=False)
+    dataset_val = SHMDataset(data_path=args.data_path_val, isPreTrain=False, isFineTuning=False, isEvaluation= True)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
