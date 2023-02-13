@@ -110,9 +110,9 @@ def get_args_parser():
                         help='Use class token instead of global pool for classification')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic', type=str, #'/home/yvelez/sacertis/traffic/20211206/'
+    parser.add_argument('--data_path', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/', type=str, #'/home/yvelez/sacertis/traffic/20211206/'
                         help='dataset path')
-    parser.add_argument('--data_path_val', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic', type=str, #'/home/yvelez/sacertis/traffic/20211206/'
+    parser.add_argument('--data_path_val', default='/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/traffic/', type=str, #'/home/yvelez/sacertis/traffic/20211206/'
                         help='dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
