@@ -17,16 +17,16 @@ class SHMDataset(Dataset):
 
     def __init__(self, data_path, isPreTrain, isFineTuning, isEvaluation):
         if isPreTrain:
-            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 01:00" #"05/12/2021 00:00", "05/12/2021 23:59"
+            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 23:59" #"05/12/2021 00:00", "05/12/2021 23:59"
             self.datasetSize = 500000
         elif isFineTuning:
-            self.start_time, self.end_time = "05/12/2021 23:40", "05/12/2021 23:50" #"06/12/2021 00:00", "06/12/2021 11:59"
+            self.start_time, self.end_time = "06/12/2021 00:00", "06/12/2021 11:59" #"06/12/2021 00:00", "06/12/2021 11:59"
             self.datasetSize = 200000
         elif isEvaluation:
-            self.start_time, self.end_time = "05/12/2021 23:45", "05/12/2021 23:59" #"06/12/2021 12:00", "06/12/2021 17:59"
+            self.start_time, self.end_time = "06/12/2021 12:00", "06/12/2021 17:59" #"06/12/2021 12:00", "06/12/2021 17:59"
             self.datasetSize = 50000
         else:
-            self.start_time, self.end_time = "05/12/2021 00:00", "05/12/2021 23:59" #"06/12/2021 17:59", "06/12/2021 23:59"
+            self.start_time, self.end_time = "06/12/2021 17:59", "06/12/2021 23:59" #"06/12/2021 17:59", "06/12/2021 23:59"
             self.datasetSize = 50000
         self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
         self.noisySensors = ["C12.1.4", "C17.1.2"]
@@ -90,7 +90,7 @@ class SHMDataset(Dataset):
 
     def _readDistanceToSensor(self):
         distanceToSensor = {}
-        with open('/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/distanceToSensor.csv') as f: #/home/yvelez/sacertis/distanceToSensor.csv
+        with open('/home/yvelez/sacertis/distanceToSensor.csv') as f: #/home/yvelez/sacertis/distanceToSensor.csv
             for line in f.readlines():
                 sensor, distance = line.replace("'", "").replace("\n","").split(",")
                 distanceToSensor[sensor] = float(distance)
@@ -99,7 +99,7 @@ class SHMDataset(Dataset):
     def _readLabels(self):
         start_time = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
         end_time = datetime.strptime(self.end_time, '%d/%m/%Y %H:%M')
-        pesaDataDf = pd.read_csv("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0) #/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv
+        pesaDataDf = pd.read_csv("/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0) #/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv
         pesaDataDf = pesaDataDf[["Id", "StartTimeStr", "ClassId", "GrossWeight", "Velocity", "VelocityUnit"]]
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
         pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
@@ -346,7 +346,7 @@ class SHMDataset(Dataset):
             print(f'Finish thresholds creation')
         else:
             print(f'Start reading thresholds')
-            with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/sensorVarDict.json", "r") as f: #/home/yvelez/sacertis/sensorVarDict.json
+            with open("/home/yvelez/sacertis/sensorVarDict.json", "r") as f: #/home/yvelez/sacertis/sensorVarDict.json
                 # Load the dict from the file
                 sensorVarDict = json.load(f)
 
