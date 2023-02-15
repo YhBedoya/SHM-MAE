@@ -33,7 +33,7 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         self.mask_ratio = mask_ratio
-        self.hiddenSize = 10
+        self.hiddenSize = int(embed_dim/2)
         # MAE encoder specifics
         self.patch_embed = PatchEmbed((mel_len, num_mels), (patch_size, patch_size), in_chans, embed_dim)
         num_patches = self.patch_embed.num_patches
@@ -52,9 +52,9 @@ class AudioMaskedAutoencoderViT(nn.Module):
         # --------------------------------------------------------------------------
         # Regression task
         self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * round((1 - mask_ratio), 2))
-        self.fc1 = nn.Linear(embed_dim, 1, bias=True)
-        #self.relu = nn.ReLU()
-        #self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
+        self.fc1 = nn.Linear(embed_dim, self.hiddenSize, bias=True)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
 
         #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
@@ -187,35 +187,9 @@ class AudioMaskedAutoencoderViT(nn.Module):
 
     def forward_regression(self, x, ids_restore):
 
-        # embed tokens
-        #N, L = x.shape  # batch, length, dim
-        #x = torch.reshape(x, (N, self.embed_dim))
         x = self.fc1(x) #[:, 1:, :]
-        # append mask tokens to sequence
-
-        #mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] - x.shape[1], 1)
-        #x_ = torch.cat([x, mask_tokens], dim=1)  # no cls token
-        #x = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
-
-        #b, l, c = x.shape
-
-        #assert l == self.grid_h * self.grid_w, "input feature has wrong size"
-
-        # add pos embed
-        #x = x + self.decoder_pos_embed
-        #x = x.view(b, self.grid_h, self.grid_w, c)
-        # apply Transformer blocks
-        #for blk in self.decoder_blocks:
-        #    x = blk(x)
-
-        #x = rearrange(x, 'b h w c -> b (h w) c')
-        #x = self.decoder_norm(x)
-
-        # predictor projection
-        #x = self.decoder_pred(x)
-
-        # remove cls token
-        # x = x[:, 1:, :]
+        x = self.relu(x)
+        x = self.fc2(x)
 
         return x
 
