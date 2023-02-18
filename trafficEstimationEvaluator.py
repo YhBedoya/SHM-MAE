@@ -378,36 +378,62 @@ class SHMDataset(Dataset):
         return sensorVarDict
 
 if __name__ == "__main__":
-    #Load the model
-    chkpt_dir = '/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning/checkpoint-199.pth'
-    model_mae = prepare_model(chkpt_dir, 'audioMae_vit_base_R')
-    print('Model loaded.')
+
+    version = "V2"
+    path = f"/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning{version}/"
 
     data_path = "/home/yvelez/sacertis/traffic/20211206/"
     testDataset = SHMDataset(data_path= data_path, 
     isPreTrain=False, isFineTuning=False, isEvaluation=False)
 
-    y = []
-    y_pred = []
+    checkpoints = []
+    MSEs = []
+    RMSEs = []
+    MAEs = []
 
-    for index in tqdm(range(len(testDataset))):
-        dataPoint = testDataset[index]
-        y.append(dataPoint[1])
-        y_pred.append(run_one_image(dataPoint[0], model_mae, True)[0][0].detach().numpy())
+    for checkpoint in os.listdir(path):
+        if checkpoint.split("-")[0] != "checkpoint":
+            continue
 
-    result = {
-        "y_true": y,
-        "y_pred": y_pred
+        print(f"Starting ------ {checkpoint} ----")
+        #Load the model
+        chkpt_dir = path + checkpoint
+        model_mae = prepare_model(chkpt_dir, 'audioMae_vit_base_R')
+        print('Model loaded.')
+
+        y = []
+        y_pred = []
+
+        for index in tqdm(range(len(testDataset))):
+            dataPoint = testDataset[index]
+            y.append(dataPoint[1])
+            y_pred.append(run_one_image(dataPoint[0], model_mae, True)[0][0].detach().numpy())
+
+        result = {
+            "y_true": y,
+            "y_pred": y_pred
+        }
+
+        MSE = ((np.array(y) - np.array(y_pred)) ** 2).mean()
+        RMSE = np.sqrt(MSE)
+        MAE = (np.abs(np.array(y) - np.array(y_pred))).mean()
+
+        checkpoints.append(checkpoint)
+        MSEs.append(MSE)
+        RMSEs.append(RMSE)
+        MAEs.append(MAE)
+
+        resultsDf = pd.DataFrame(result)
+        #saving results in npy files to read later
+        resultsDf.to_csv(f'/home/yvelez/SHM-MAE/TrafficEstimation/TrafficEstimationResultsEvaluation{version}_{checkpoint}.csv')
+
+    aggregator = {
+    "checkpoints": checkpoints,
+    "MSEs": MSEs,
+    "RMSEs": RMSEs,
+    "MAEs": MAEs
     }
 
-    MSE = ((np.array(y) - np.array(y_pred)) ** 2).mean()
-    RMSE = np.sqrt(MSE)
-    MAE = (np.abs(np.array(y) - np.array(y_pred))).mean()
-
-    print(f"MSE: {MSE}")
-    print(f"RMSE: {RMSE}")
-    print(f"MAE: {MAE}")
-
-    resultsDf = pd.DataFrame(result)
+    aggregationDf = pd.DataFrame(aggregator)
     #saving results in npy files to read later
-    resultsDf.to_csv(f'/home/yvelez/SHM-MAE/TrafficEstimation/TrafficEstimationResultsEvaluation.csv')
+    aggregationDf.to_csv(f'/home/yvelez/SHM-MAE/TrafficEstimation/TrafficEstimationResultsEvaluationAgg{version}.csv')

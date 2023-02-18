@@ -52,23 +52,13 @@ class AudioMaskedAutoencoderViT(nn.Module):
         # --------------------------------------------------------------------------
         # Regression task
         self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * round((1 - mask_ratio), 2))
-        self.fc1 = nn.Linear(embed_dim, self.hiddenSize, bias=True)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
+        
+        
+        self.fc1 = nn.Linear(embed_dim, 1, bias=True)
+        
+        #self.relu = nn.ReLU()
+        #self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
 
-        #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
-
-        #self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_embed_dim),
-        #                                      requires_grad=False)  # fixed sin-cos embedding
-
-        #self.decoder_blocks = nn.ModuleList([
-        #    SwinBlock(decoder_embed_dim, decoder_num_heads, decoder_embed_dim // num_heads,
-        #              int(mlp_ratio * decoder_embed_dim),
-        #              shifted=True, window_size=4, relative_pos_embedding=True)
-        #    for i in range(decoder_depth)])
-
-        #self.decoder_norm = norm_layer(decoder_embed_dim)
-        #self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size ** 2 * in_chans, bias=True)  # decoder to patch
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
@@ -188,8 +178,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def forward_regression(self, x, ids_restore):
 
         x = self.fc1(x) #[:, 1:, :]
-        x = self.relu(x)
-        x = self.fc2(x)
+        #x = self.relu(x)
+        #x = self.fc2(x)
 
         return x
 
