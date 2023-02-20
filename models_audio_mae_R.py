@@ -54,10 +54,9 @@ class AudioMaskedAutoencoderViT(nn.Module):
         self.regressionInputShape = int(embed_dim * self.grid_h * self.grid_w * round((1 - mask_ratio), 2))
         
         
-        self.fc1 = nn.Linear(embed_dim, 1, bias=True)
-        
-        #self.relu = nn.ReLU()
-        #self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
+        self.fc1 = nn.Linear(embed_dim, self.hiddenSize, bias=True)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(self.hiddenSize, 1, bias=True)
 
         # --------------------------------------------------------------------------
 
@@ -178,8 +177,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
     def forward_regression(self, x, ids_restore):
 
         x = self.fc1(x) #[:, 1:, :]
-        #x = self.relu(x)
-        #x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc2(x)
 
         return x
 
