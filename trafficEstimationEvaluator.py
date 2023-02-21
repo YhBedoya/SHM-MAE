@@ -379,7 +379,7 @@ class SHMDataset(Dataset):
 
 if __name__ == "__main__":
 
-    version = "V3"
+    version = "V4"
     path = f"/home/yvelez/SHM-MAE/output_dir_TE/fine_tuning{version}/"
 
     data_path = "/home/yvelez/sacertis/traffic/20211206/"
