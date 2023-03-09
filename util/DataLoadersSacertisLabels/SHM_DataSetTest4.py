@@ -362,7 +362,7 @@ class SHMDataset(Dataset):
     
 def plotSpect(frequencies, times, spectrogram, index, label, sensor):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD Vehicles: {label}, sensor: {sensor}')
+    plt.title(f'PSD spectrogram (TLE)')
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
@@ -383,7 +383,7 @@ if __name__ == "__main__":
     #means = manager.list()
     #vars = manager.list()
 
-    indexes = [random.randrange(0, len(gen)) for i in range(100)]
+    indexes = [random.randrange(0, len(gen)) for i in range(200)]
     #indexes = range(0,len(gen))
     for i in tqdm(indexes):
         frequencies, times, spectrogram, label, timeSlice, sensor = gen[i]

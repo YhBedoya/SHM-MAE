@@ -22,7 +22,7 @@ import torchvision
 class SHMDataset(Dataset):
 
     def __init__(self):
-        self.start_time, self.end_time = "05/12/2021 14:00", "06/12/2021 14:30"
+        self.start_time, self.end_time = "05/12/2021 14:00", "06/12/2021 14:10"
         self.path = '/home/yhbedoya/Repositories/SHM-MAE/subTraffic/'
         self.data = self._readCSV()
         self.sampleRate = 100
@@ -150,16 +150,16 @@ class SHMDataset(Dataset):
         return y
 
     
-def plotSpect(frequencies, times, spectrogram, index, std):
+def plotSpect(frequencies, times, spectrogram, std):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {std}')
+    plt.title(f'PSD spectrogram')
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
-    folder = "positives" if std > 0.0075 else "noise"
-    plt.savefig(f'../spect/{folder}/{index}.png')
-    plt.close()
+    #folder = "positives" if std > 0.0075 else "noise"
+    #plt.savefig(f'../spect/{folder}/{index}.png')
+    #plt.close()
 
 def task(gen, i):
     frequencies, times, spectrogram, std = gen[i]
@@ -176,14 +176,15 @@ if __name__ == "__main__":
     means = manager.list()
     vars = manager.list()
 
-    #indexes = [random.randrange(0, len(gen)) for i in range(50000)]
+    indexes = [random.randrange(0, len(gen)) for i in range(120)]
     #indexes = range(0,len(gen))
     #maxs = []
-    #for i in tqdm(indexes):
+    for i in tqdm(indexes):
         #print(f'Index: {i}')
         #startMeasure = time.time()
-    #    frequencies, times, spectrogram, std = gen[i]
-    #    maxs.append(torch.max(spectrogram))
+        frequencies, times, spectrogram, std = gen[i]
+        plotSpect(frequencies, times, spectrogram, std)
+        #maxs.append(torch.max(spectrogram))
         #means.append(np.mean(spectrogram))
         #vars.append(np.var(spectrogram))
         #endMeasure = time.time()
@@ -193,25 +194,25 @@ if __name__ == "__main__":
     #plt.xlim([0,2])
     #plt.show()
 
-    #    plotSpect(frequencies, times, spectrogram, i, std)
+        
     #gnrMean = np.mean(np.array(means))
     #gnrStd = np.sqrt(np.mean(np.array(vars)))
 
     #startMeasure = time.time()
-    indexes = [random.randrange(0, len(gen)) for i in range(10000)]
+    #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
     #indexes = range(56700, 56900)
-    batchSize = 100
-    batches = math.floor(len(indexes)/batchSize)
-    for batchNumber in tqdm(range(0, batches)):
-        start= batchSize*batchNumber
-        indexBatch = range(start,start+batchSize)
-        for i in indexBatch:
-            p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
-            p.start()
-            processes.append(p)
+    #batchSize = 100
+    #batches = math.floor(len(indexes)/batchSize)
+    #for batchNumber in tqdm(range(0, batches)):
+    #    start= batchSize*batchNumber
+    #    indexBatch = range(start,start+batchSize)
+    #    for i in indexBatch:
+    #        p = multiprocessing.Process(target = task, args=(gen, indexes[i]))
+    #        p.start()
+    #        processes.append(p)
 
-        for p in processes:
-            p.join()
+    #    for p in processes:
+    #        p.join()
     #endMeasure = time.time()
 
     #print(f'Total time {endMeasure-startMeasure}')

@@ -44,7 +44,7 @@ class SHMDataset(Dataset):
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
-        #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
+        print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
         return frequencies, times, spectrogram, power
 
     def _readCSV(self):
@@ -81,7 +81,7 @@ class SHMDataset(Dataset):
                 new_dict["ts"].append(ts + idx*datetime.timedelta(milliseconds=10))
                 new_dict["z"].append(z * conv)
                 new_dict["sens_pos"].append(sens)
-            if i >400000:
+            if i >100000:
                 break
 
         df_new = pd.DataFrame(new_dict)
@@ -165,14 +165,15 @@ class SHMDataset(Dataset):
     
 def plotSpect(frequencies, times, spectrogram, index, power):
     plt.figure(figsize=(10, 5))
-    plt.title(f'spectrogram from PSD: {power}')
+    plt.title(f'Spectrogram from PSD')
+    times= np.linspace(1, 10, 80)
     plt.pcolormesh(times, frequencies, 10*(np.squeeze(spectrogram)), vmin=-150, vmax=-50)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     plt.colorbar(format="%+2.f", label='dB')
-    folder = "positives" if power > 1.25*10**-6 else "noise"
-    plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/PowerINSIST/{folder}/{index}.png')
-    plt.close()
+    #folder = "positives" if power > 1.25*10**-6 else "noise"
+    #plt.savefig(f'/home/yhbedoya/Repositories/SHM-MAE/PowerINSIST/{folder}/{index}.png')
+    #plt.close()
 
 def task(gen, i):
     frequencies, times, spectrogram, power = gen[i]
@@ -191,13 +192,14 @@ if __name__ == "__main__":
 
     print(f"Total instances: {len(gen)}")
 
-    indexes = [random.randrange(0, len(gen)) for i in range(5000)]
+    indexes = [random.randrange(0, len(gen)) for i in range(10)]
     #indexes = range(0,len(gen))
     #maxs = []
     for i in tqdm(indexes):
 
         frequencies, times, spectrogram, power = gen[i]
-        plotSpect(frequencies, times, spectrogram, i, power)
+        if power > 1.25*10**-6:
+            plotSpect(frequencies, times, spectrogram, i, power)
 
     #startMeasure = time.time()
     #indexes = [random.randrange(0, len(gen)) for i in range(10000)]
