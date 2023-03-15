@@ -13,7 +13,6 @@ import random
 from scipy import signal
 from scipy import stats
 import json
-import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.ensemble import RandomForestRegressor as RF
 from sklearn.neural_network import MLPRegressor as MLP
