@@ -91,7 +91,7 @@ class SHMDataset(Dataset):
 
     def _readDistanceToSensor(self):
         distanceToSensor = {}
-        with open("/home/yhbedoya/Repositories/SHM-MAE/LabelGeneration/distanceToSensor.csv") as f: #/home/yvelez/sacertis/distanceToSensor.csv  /home/yhbedoya/Repositories/SHM-MAE/LabelGeneration/distanceToSensor.csv
+        with open("/home/yvelez/sacertis/distanceToSensor.csv") as f: #/home/yvelez/sacertis/distanceToSensor.csv  /home/yhbedoya/Repositories/SHM-MAE/LabelGeneration/distanceToSensor.csv
             for line in f.readlines():
                 sensor, distance = line.replace("'", "").replace("\n","").split(",")
                 distanceToSensor[sensor] = float(distance)
@@ -494,7 +494,7 @@ def evaluateModels(trainedModels, numFeatures, X_test, y_test):
         }
         predictionsDf = pd.DataFrame(predictions)
 
-        predictionsDf.to_csv("")
+        predictionsDf.to_csv(f"/home/yvelez/SHM-MAE/ReplicaBurrello2021/predictions/{name}_{numFeatures}.csv")
 
         results["model"].append(name)
         results["mse"].append(mean_squared_error(y_test, y_pred_test))
@@ -511,21 +511,15 @@ if __name__ == "__main__":
     testDataset = getDataset(training=False, evaluation=False, test=True)
 
     numFeaturesOptions = [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, "all"]
-
-    models = {"LR": LR(fit_intercept=True),
-              "RF": RF(max_depth=200, n_estimators=30, verbose=2),
-              "KNR": KNR(n_neighbors=7),
-              "MLP": MLP(hidden_layer_sizes=(100, 100, 100), verbose=2),
-              "SVR": SVR(kernel='rbf', C=10, verbose=2)}
     
     resultsDf = pd.DataFrame()
     
     for numFeatures in numFeaturesOptions:
         models = {"LR": LR(fit_intercept=True),
-            "RF": RF(max_depth=200, n_estimators=30, verbose=2),
-            "KNR": KNR(n_neighbors=7),
-            "MLP": MLP(hidden_layer_sizes=(100, 100, 100), verbose=2),
-            "SVR": SVR(kernel='rbf', C=10, verbose=2)}
+                "RF": RF(max_depth=200, n_estimators=30, verbose=2),
+                "KNR": KNR(n_neighbors=7),
+                "MLP": MLP(hidden_layer_sizes=(100, 100, 100), verbose=2),
+                "SVR": SVR(kernel='rbf', C=10, verbose=2)}
         
         print(f"-------------- Start process with {numFeatures} features ---------------------")
         selected_features = featureSelection(trainDataset, numFeatures)
@@ -539,7 +533,7 @@ if __name__ == "__main__":
 
         resultsDf = pd.concat([resultsDf, metricsDf])
 
-    resultsDf.to_csv("resultsTest.csv")
+    resultsDf.to_csv(f"/home/yvelez/SHM-MAE/ReplicaBurrello2021/burrello2021Results.csv")
 
 
 
