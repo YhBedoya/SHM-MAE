@@ -477,7 +477,7 @@ def fitModels(models, X, y):
 
     return models
 
-def evaluateModels(trainedModels, X_test, y_test):
+def evaluateModels(trainedModels, numFeatures, X_test, y_test):
 
     results = {"model": [],
                "mse": [],
@@ -487,6 +487,14 @@ def evaluateModels(trainedModels, X_test, y_test):
 
     for name, model in trainedModels.items():
         y_pred_test = model.predict(X_test)
+
+        predictions = {
+            "TrueValue": y_test,
+            "PredictedValue": y_pred_test
+        }
+        predictionsDf = pd.DataFrame(predictions)
+
+        predictionsDf.to_csv("")
 
         results["model"].append(name)
         results["mse"].append(mean_squared_error(y_test, y_pred_test))
@@ -524,7 +532,7 @@ if __name__ == "__main__":
         X, y, X_ev, y_ev, X_test, y_test = dataSplit(trainDataset, evalDataset, testDataset, selected_features)
 
         trainedModels = fitModels(models, X, y)
-        metricsDict = evaluateModels(trainedModels, X_test, y_test)
+        metricsDict = evaluateModels(trainedModels, numFeatures, X_test, y_test)
 
         metricsDf = pd.DataFrame(metricsDict)
         metricsDf["numFeatures"] = numFeatures
