@@ -172,7 +172,8 @@ class AudioMaskedAutoencoderViT(nn.Module):
         x = self.norm(x)
         cls_tokens_lt = x[:, 0, :]
 
-        return cls_tokens_lt, mask, ids_restore
+        return x, mask, ids_restore #only for version 1
+        #return cls_tokens_lt, mask, ids_restore
 
     def forward_regression(self, x, ids_restore):
 
