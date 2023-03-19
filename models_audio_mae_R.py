@@ -176,8 +176,13 @@ class AudioMaskedAutoencoderViT(nn.Module):
         #return cls_tokens_lt, mask, ids_restore
 
     def forward_regression(self, x, ids_restore):
-
+        #For complete output regression
+        N, L, D = x.shape  # batch, length, dim
+        x = torch.reshape(x, (N, self.regressionInputShape))
         x = self.fc1(x) #[:, 1:, :]
+
+        #for CLS based regression
+        #x = self.fc1(x) #[:, 1:, :]
         #x = self.relu(x)
         #x = self.fc2(x)
 
