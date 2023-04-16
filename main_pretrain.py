@@ -58,10 +58,10 @@ def get_args_parser():
     parser.add_argument('--model', default='audioMae_vit_base', type=str, metavar='MODEL',
                         help='Name of model to train')
 
-    parser.add_argument('--input_size', default=224, type=int, #TODO: define according to the paper parameters
+    parser.add_argument('--input_size', default=224, type=int, #Comment: Not useful
                         help='images input size')
 
-    parser.add_argument('--mask_ratio', default=0.8, type=float, #TODO: define according to the paper parameters
+    parser.add_argument('--mask_ratio', default=0.8, type=float, #Comment: Not useful, the mask ratio is hardcoded in the engine
                         help='Masking ratio (percentage of removed patches).')
 
     parser.add_argument('--norm_pix_loss', action='store_true',
@@ -69,17 +69,17 @@ def get_args_parser():
     parser.set_defaults(norm_pix_loss=False)
 
     # Optimizer parameters
-    parser.add_argument('--weight_decay', type=float, default=0.05, #TODO: define according to the paper parameters
+    parser.add_argument('--weight_decay', type=float, default=0.05,
                         help='weight decay (default: 0.05)')
 
-    parser.add_argument('--lr', type=float, default=None, metavar='LR', #TODO: define according to the paper parameters
+    parser.add_argument('--lr', type=float, default=None, metavar='LR',
                         help='learning rate (absolute lr)')
-    parser.add_argument('--blr', type=float, default=1e-3, metavar='LR', #TODO: define according to the paper parameters
+    parser.add_argument('--blr', type=float, default=1e-3, metavar='LR',
                         help='base learning rate: absolute_lr = base_lr * total_batch_size / 256')
-    parser.add_argument('--min_lr', type=float, default=0., metavar='LR', #TODO: define according to the paper parameters
+    parser.add_argument('--min_lr', type=float, default=0., metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
 
-    parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N', #TODO: define according to the paper parameters
+    parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N',
                         help='epochs to warmup LR')
 
     # Dataset parameters

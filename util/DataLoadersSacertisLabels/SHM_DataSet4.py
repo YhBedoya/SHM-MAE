@@ -28,7 +28,7 @@ class SHMDataset(Dataset):
         else:
             self.start_time, self.end_time = "06/12/2021 17:59", "06/12/2021 23:59" #"06/12/2021 17:59", "06/12/2021 23:59"
             self.datasetSize = 50000
-        self.path = data_path #'/home/yhbedoya/Repositories/SHM-MAE/traffic/20211205/'
+        self.path = data_path
         self.noisySensors = ["C12.1.4", "C17.1.2"]
         self.minDuration = 0.25
         self.data = self._readCSV()
@@ -42,7 +42,7 @@ class SHMDataset(Dataset):
         self.windowLength= 5990
         self.windowStep = 1500
         self.data, self.limits, self.totalWindows, min, max = self._partitioner()
-        if isPreTrain:
+        if isPreTrain: #The statistics are calculated during pre-train, during evaluation and fine-tuning use those from train
             self.min = min
             self.max = max
         else:
@@ -58,7 +58,6 @@ class SHMDataset(Dataset):
         frequencies, times, spectrogram = self._transformation(slice)
         spectrogram = torch.unsqueeze(torch.tensor(spectrogram, dtype=torch.float64), 0)
         NormSpect = self._normalizer(spectrogram).type(torch.float16)
-        #print(f'type {type(NormSpect)}, inp shape: {slice.shape} out shape: {NormSpect.shape}')
         return torch.transpose(NormSpect, 1, 2), label
 
     def _readCSV(self):
@@ -79,18 +78,17 @@ class SHMDataset(Dataset):
         df = pd.concat(ldf).sort_values(by=['sens_pos', 'ts'])
         df.reset_index(inplace=True, drop=True)
 
-        #df = df[df['sens_pos'].isin(self.sensors)]
         df['ts'] = pd.to_datetime(df['ts'], unit='ms')
         df['Time'] = df['ts'].dt.strftime('%Y-%m-%d %H:%M:00')
-        df["zN"] = df["z"]-np.mean(df["z"])
-        df["vars"] = df["zN"].rolling(window=100).var().fillna(0)
-        df["vars"] = df["vars"].rolling(window=100).mean().fillna(0)
+        df["zN"] = df["z"]-np.mean(df["z"]) #Eliminate the constant component of the readings
+        df["vars"] = df["zN"].rolling(window=100).var().fillna(0) #Calculate moving variance accross windows
+        df["vars"] = df["vars"].rolling(window=100).mean().fillna(0) #Mean of the variances
         print(f'finish reading process')
         return df
 
     def _readDistanceToSensor(self):
         distanceToSensor = {}
-        with open('/home/yvelez/sacertis/distanceToSensor.csv') as f: #/home/yvelez/sacertis/distanceToSensor.csv
+        with open('/home/yvelez/sacertis/distanceToSensor.csv') as f: #File containing distance from each sensor to the scale
             for line in f.readlines():
                 sensor, distance = line.replace("'", "").replace("\n","").split(",")
                 distanceToSensor[sensor] = float(distance)
@@ -99,7 +97,7 @@ class SHMDataset(Dataset):
     def _readLabels(self):
         start_time = datetime.strptime(self.start_time, '%d/%m/%Y %H:%M')
         end_time = datetime.strptime(self.end_time, '%d/%m/%Y %H:%M')
-        pesaDataDf = pd.read_csv("/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0) #/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv
+        pesaDataDf = pd.read_csv("/home/yvelez/sacertis/dati_pese_dinamiche/dati 2021-12-04_2021-12-12 pesa km 104,450.csv", sep=";", index_col=0)
         pesaDataDf = pesaDataDf[["Id", "StartTimeStr", "ClassId", "GrossWeight", "Velocity", "VelocityUnit"]]
         pesaDataDf["Time"] = pd.to_datetime(pesaDataDf["StartTimeStr"])
         pesaDataDf["Time"] = pesaDataDf["Time"].dt.strftime('%Y-%d-%m %H:%M:00')
@@ -268,7 +266,7 @@ class SHMDataset(Dataset):
                     start = v[2]+(index-v[0])*self.windowStep
                     timeSlice = timestamps[start: start+self.windowLength]
                     label = self._labelAssigner(timeSlice, sensor)
-                    filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
+                    filteredSlice = timeData[start: start+self.windowLength]
                     signalPower = self.power(filteredSlice)
 
                     if (signalPower>1.25*10**-6) or (label>0):
@@ -295,15 +293,6 @@ class SHMDataset(Dataset):
     def _normalizer(self, spectrogram):
         spectrogramNorm = (spectrogram - self.min) / (self.max - self.min)
         return spectrogramNorm
-    
-    def butter_bandpass(self, lowcut, highcut, fs, order=5):
-        return signal.butter(order, [1, 49], fs=fs, btype='band')
-
-    def butter_bandpass_filter(self, slice, lowcut, highcut, fs, order=5):
-        sliceN = slice-np.mean(np.array(slice))
-        b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
-        y = signal.lfilter(b, a, sliceN)
-        return y
 
     def power(self, slice):
         return np.sqrt(np.mean(np.array(slice)**2))**2
@@ -325,6 +314,11 @@ class SHMDataset(Dataset):
         return lower_bound, upper_bound
 
     def _calculateThresholds(self, isPreTrain):
+        """
+        During pre-training the variance of the sensors are calculated to define the thresholds to identify the vehicles, the statistics are save
+        for each sensor in the file sensorVarDict.json
+        During fine-tuning or evaluation, the statistics are readed from the file
+        """
         if isPreTrain:
             print(f'Start creating thresholds')
             varDf = self.data[["sens_pos", "vars"]]
@@ -340,13 +334,13 @@ class SHMDataset(Dataset):
                 std = sensorVarDf["vars"].std()
                 threshold = mean + 3.5 * std
                 sensorVarDict[sensor] = {"mean": mean, "std": std, "threshold": threshold}
-                #with open("/content/drive/MyDrive/Data Science and Engineering - PoliTo2/Thesis/models/MAE-SHM/output_dir_TE/sensorVarDict.json", "w") as f:
-                #    # Write the dict to the file
-                #    json.dump(sensorVarDict, f)
+                with open("/home/yvelez/sacertis/sensorVarDict.json", "w") as f:
+                    # Write the dict to the file
+                    json.dump(sensorVarDict, f)
             print(f'Finish thresholds creation')
         else:
             print(f'Start reading thresholds')
-            with open("/home/yvelez/sacertis/sensorVarDict.json", "r") as f: #/home/yvelez/sacertis/sensorVarDict.json
+            with open("/home/yvelez/sacertis/sensorVarDict.json", "r") as f:
                 # Load the dict from the file
                 sensorVarDict = json.load(f)
 

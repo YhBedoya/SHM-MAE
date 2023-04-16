@@ -179,7 +179,7 @@ class SHMDataset(Dataset):
                 if index in range(v[0], v[1]):
                     start = v[2]+(index-v[0])*self.windowStep
                     timeSlice = timestamps[start: start+self.windowLength]
-                    filteredSlice = self.butter_bandpass_filter(timeData[start: start+self.windowLength], 0, 50, self.sampleRate)
+                    filteredSlice = timeData[start: start+self.windowLength]
                     signalPower = self.power(filteredSlice)
 
                     if signalPower>1.25*10**-6:
@@ -206,15 +206,6 @@ class SHMDataset(Dataset):
     def _normalizer(self, spectrogram):
         spectrogramNorm = (spectrogram - self.min) / (self.max - self.min)
         return spectrogramNorm
-    
-    def butter_bandpass(self, lowcut, highcut, fs, order=5):
-        return signal.butter(order, [1, 49], fs=fs, btype='band')
-
-    def butter_bandpass_filter(self, slice, lowcut, highcut, fs, order=5):
-        sliceN = slice-np.mean(np.array(slice))
-        b, a = self.butter_bandpass(lowcut, highcut, fs, order=order)
-        y = signal.lfilter(b, a, sliceN)
-        return y
 
     def power(self, slice):
         signalPower = np.sqrt(np.mean(np.array(slice)**2))**2
